@@ -1,5 +1,13 @@
-#ifndef FINDLOGFUNC_H
-#define FINDLOGFUNC_H
+//
+//  FindLoggingFunction.hpp
+//  LLVM
+//
+//  Created by ZhouyangJia on 16/4/13.
+//
+//
+
+#ifndef FindLoggingFunction_hpp
+#define FindLoggingFunction_hpp
 
 #include <map>
 #include <vector>
@@ -49,40 +57,64 @@ using namespace clang;
 using namespace llvm;
 using namespace llvm::opt;
 
-class FindLogVisitor : public RecursiveASTVisitor <FindLogVisitor> {
+
+struct FunctionFeat{
+	int calledNumber;
+	int fileNumber;
+	
+	string funcName;
+	bool funcKeyWord;
+	
+	string fileName;
+	bool fileKeyWord;
+	
+	int lenth;
+	bool flow;
+    
+    bool decl;
+    bool haschar;
+    
+    int logNumber;
+    
+	int label;
+    
+    string source;
+    
+	void print();
+};
+
+
+class FindLoggingVisitor : public RecursiveASTVisitor <FindLoggingVisitor> {
 public:
-	explicit FindLogVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
+	explicit FindLoggingVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
 	
 	bool VisitFunctionDecl (FunctionDecl*);
 	
-	void travelStmt(Stmt*, Stmt*);	
+	void travelStmt(Stmt*);	
 	
-	
+    string expr2str(Stmt*);
+	string getfile(string);
 	bool hasKeyWord(string);
+    bool hasChar(QualType);
 	
-	
-	
-//private:
+private:
 	CompilerInstance* CI;
 	StringRef InFile;
-	
 };
 
-class FindLogConsumer : public ASTConsumer {
+class FindLoggingConsumer : public ASTConsumer {
 public:
-	explicit FindLogConsumer(CompilerInstance* CI, StringRef InFile) : CI(CI), Visitor(CI, InFile){}
+	explicit FindLoggingConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
 	virtual void HandleTranslationUnit (clang::ASTContext &Context);
-private: 
-	CompilerInstance* CI;
-	FindLogVisitor Visitor;
+private:
+	FindLoggingVisitor Visitor;
 	StringRef InFile;
 };
 
-class FindLogAction : public ASTFrontendAction {
+class FindLoggingAction : public ASTFrontendAction {
 public:
 	virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
 private:
 };
 
-
-#endif
+#endif /* FindLoggedSnippet_hpp */

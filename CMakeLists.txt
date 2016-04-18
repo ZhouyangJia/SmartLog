@@ -6,12 +6,7 @@ set( LLVM_LINK_COMPONENTS
 
 add_clang_executable(clang-mytool
   MyTool.cpp
-  CountRetCode.cpp
-  FindLogFunc.cpp
-  FuncCondInfo.cpp
-  InsertLog.cpp
-  RecordCond.cpp
-  FuncLogInfo.cpp
+  FindLoggingFunction.cpp
   FindLoggedSnippet.cpp
   )
 

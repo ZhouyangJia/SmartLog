@@ -1,31 +1,32 @@
-#include "MyTool.h"
+//
+//  MyTool.cpp
+//  LLVM
+//
+//  Created by ZhouyangJia on 16/4/13.
+//
+//
 
-FuncLogInfo myFuncLogInfo[MAX_LOGGED_FUNC];
-map<string, int> myFuncLogInfoMap;
-int myFuncLogInfoCnt;
+#include "MyTool.hpp"
+#include "FindLoggingFunction.hpp"
+#include "FindLoggedSnippet.hpp"
 
-FuncCondInfo myFuncCondInfo[MAX_LOGGED_FUNC];
-map<string, int> myFuncCondInfoMap;
-int myFuncCondInfoCnt;
+//record the called-time of each function
+FunctionFeat myCalledFeat[MAX_FUNC_NUM];
+map<string, int> myCalledFeatMap;
+int myCalledFeatCnt;
 
-map<string, int> myFileMap;
+string lastName;
+int fileNum;
+int fileTotalNum;
 
+string logNames[MAX_LOG_FUNC];
+int logNamesCnt;
 
 FILE* in;
 FILE* out;
 
-string lastName;
-int fileNum;
-
-int cntfunc;
-int cntlog;
-int cntulog;
-
-int totalLogNum;
-
-int returnCodeNum;
-int totalReturnNum;
-
+int totalLoggingFunction;
+int totalLoggedSnippet;
 
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
@@ -47,75 +48,21 @@ static cl::extrahelp MoreHelp(
 static cl::OptionCategory ClangMytoolCategory("clang-mytool options");
 static std::unique_ptr<opt::OptTable> Options(createDriverOptTable());
 
-static cl::opt<bool> RecordCondition(
-	"find-log-condition",
-    cl::desc("Print all the log condition."),
-    cl::cat(ClangMytoolCategory));
-
-static cl::opt<bool> InsertLog(
-	"insert-log-statement",
-                               cl::desc("Insert log statement."),
-                               cl::cat(ClangMytoolCategory));
-
-static cl::opt<bool> FindLogFunction(
-	"find-logging-function",
-                                     cl::desc("Find logging function."),
+static cl::opt<bool> FindLoggingFunction("find-logging-function",
+                                     cl::desc("Find logging functions."),
                                      cl::cat(ClangMytoolCategory));
 
-static cl::opt<bool> CountReturnCode(
-	"count-return-code",cl::desc("Count the number of return error code and total return statement."),
-                                     cl::cat(ClangMytoolCategory));
+static cl::opt<bool> FindLoggedSnippet("find-logged-snippet",
+                                       cl::desc("Find logged snippets."),
+                                       cl::cat(ClangMytoolCategory));
 
-static cl::opt<bool> FindLoggedSnippet(
-                                     "find-logged-snippet",cl::desc("Find the logged snippets."),
-                                     cl::cat(ClangMytoolCategory));
+static cl::opt<bool> LogScore("log-score",
+                             cl::desc("Calculate log score."),
+                             cl::cat(ClangMytoolCategory));
 
-void readInfluencingCond(){
-	
-	if((in = fopen("./influencing_condition.out","r")) == NULL) {
-		errs()<<"Miss the need log function file \"influencing_condition.out\".\n";
-	}
-	else {
-		while(!feof(in)) {
-			char buf[300];
-			fgets(buf, 300, in);
-			if(strlen(buf) <= 1) break;
-			buf[strlen(buf)-1] = '\0';
-			
-			string readline = buf;
-			
-			if(readline[0] == '2') continue;
-			
-			string funcName;
-			string funcCond;
-			int funcCondTime;
-			string time;
-			
-			time = readline.substr(readline.find_last_of(',') + 1, string::npos);
-			readline = readline.substr(0, readline.find_last_of(','));
-			funcCondTime = atoi(time.c_str());
-			
-			funcCond = readline.substr(readline.find_last_of(',') + 1, string::npos);
-			readline = readline.substr(0, readline.find_last_of(','));
-			
-			funcName = readline.substr(readline.find_last_of(',') + 1, string::npos);
-			readline = readline.substr(0, readline.find_last_of(','));
-			
-			if(funcCondTime == 0)break;
-			//llvm::errs()<<funcName<<" "<<funcCond<<" "<<funcCondTime<<"\n";
-			
-			if(myFuncCondInfoMap[funcName] == 0){
-				myFuncCondInfoMap[funcName] = ++myFuncCondInfoCnt;
-			}
-			int index = myFuncCondInfoMap[funcName];
-			myFuncCondInfo[index].setFuncName(funcName);
-			myFuncCondInfo[index].addCond(funcCond, funcCondTime);
-		}
-		fclose(in);
-	}
-}
-
-void readLogFunction(){
+void readLoggingFunction(){
+    
+    logNamesCnt = 0;
     
     if((in = fopen("./logging_function.out","r")) == NULL) {
         errs()<<"Miss the need log function file \"logging_function.out\".\n";
@@ -124,97 +71,41 @@ void readLogFunction(){
         while(!feof(in)) {
             char buf[300];
             fgets(buf, 300, in);
-            if(strlen(buf) <= 1) continue;
+            if(strlen(buf) <= 1) break;
             buf[strlen(buf)-1] = '\0';
             string name = buf;
-            llvm::outs()<<name<<"\n";
+            logNames[logNamesCnt++] = name;
+            
+            if(logNamesCnt == MAX_LOG_FUNC){
+                errs()<<"Too many logging functions!\n";
+                exit(1);
+            }
         }
+        fclose(in);
     }
-    
-}
-
-void readLoggedFunction(){
-	
-	if((in = fopen("./logged_snippet.out","r")) == NULL) {
-		errs()<<"Miss the need log function file \"logged_snippet.out\".\n";
-	}
-	else {
-		while(!feof(in)) {
-			char buf[300];
-			fgets(buf, 300, in);
-			if(strlen(buf) <= 1) break;
-			buf[strlen(buf)-1] = '\0';
-			
-			string name = buf;
-			string funcLocFile;
-			string funcLocLine;
-			string logName;
-			string logLocFile;
-			string logLocLine;
-			
-			logLocLine = name.substr(name.find_last_of(':') + 1, string::npos);
-			name = name.substr(0, name.find_last_of(':'));
-			
-			logLocFile = name.substr(name.find_last_of('@') + 1, string::npos);
-			name = name.substr(0, name.find_last_of('@'));
-			
-			logName = name.substr(name.find_last_of('#') + 1, string::npos);
-			name = name.substr(0, name.find_last_of('#'));
-			
-			funcLocLine = name.substr(name.find_last_of(':') + 1, string::npos);
-			name = name.substr(0, name.find_last_of(':'));
-			
-			funcLocFile = name.substr(name.find_last_of('@') + 1, string::npos);
-			name = name.substr(0, name.find_last_of('@'));
-			
-			int funcLine = atoi(funcLocLine.c_str());
-			int logLine = atoi(logLocLine.c_str());
-			
-			if(myFuncLogInfoMap[name] == 0){
-				myFuncLogInfoMap[name] = ++myFuncLogInfoCnt;
-			}
-			int index = myFuncLogInfoMap[name];
-			//llvm::outs()<<"AAA"<<index<<" "<<name<<" "<<funcLocFile<<" "<<funcLine<<" "<< 
-			//logName<<" "<<logLocFile<<" "<<logLine<<"\n";
-			myFuncLogInfo[index].setFuncName(name);
-			LogInfo l(funcLocFile, funcLine, logName, logLocFile, logLine);
-			myFuncLogInfo[index].addLog(l);
-		}
-		fclose(in);
-	}
-}
-
-void printResult(){
-	out = fopen("./sl_runtime_info","w");
-	//freopen("/home/jiazhouyang/mysql-5.6.17/liblog.h","w",stdout);
-	
-	fprintf(out, "------------------Result------------------\n");
-	
 }
 
 int main(int argc, const char **argv) {
-	//llvm::sys::PrintStackTraceOnErrorSignal();
-	
-	//vector<string> Sources;
-	//Sources.push_back("/home/jiazhouyang/httpd-2.4.10/server/mpm/event/event.c");
-	//Sources.push_back("/home/jiazhouyang/httpd-2.4.10/os/unix/unixd.c");
-	
 	
 	CommonOptionsParser OptionsParser(argc, argv, ClangMytoolCategory);
 	vector<string> source = OptionsParser.getSourcePathList();
-	
-	bool diag = true;
-	
-	fileNum = 0;
-	lastName = "";
-		
-	std::unique_ptr<FrontendActionFactory> FrontendFactory;
+    fileTotalNum = source.size();
     
-    if(FindLoggedSnippet){
+    std::unique_ptr<FrontendActionFactory> FrontendFactory;
+    
+    if(FindLoggingFunction || LogScore){
         
-        readLogFunction();
-        FrontendFactory = newFrontendActionFactory<RecordCondAction>();
+        llvm::errs()<<"Find logging functions:\n";
         
+        bool diag = true;
+        fileNum = 0;
+        lastName = "";
+        totalLoggingFunction = 0;
+        
+        myCalledFeatCnt = 0;
+        myCalledFeatMap.clear();
+        
+        FrontendFactory = newFrontendActionFactory<FindLoggingAction>();
         for(unsigned i = 0; i < source.size(); i++){
             vector<string> mysource;
             mysource.push_back(source[i]);
@@ -222,112 +113,100 @@ int main(int argc, const char **argv) {
             Tool.clearArgumentsAdjusters();
             if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
                 Tool.setDiagnosticConsumer(idc);}
-            //Tool.run(FrontendFactory.get());
+            Tool.run(FrontendFactory.get());
         }
+        
+        
+        out = fopen("logging_function.out","w");
+        
+        //outs()<<"funcName\tfuncKeyWord\tfileName\tfileKeyWord\tlenth\tflow\tcalledNumber\tfileNumber\thaschar\tdecl\tlabel\n";
+        for(int i = 1; i < myCalledFeatCnt; i++){
+            //myCalledFeat[i].print();
+            
+            if(myCalledFeat[i].calledNumber<3 || myCalledFeat[i].fileNumber<2)
+                myCalledFeat[i].label = -1;
+            
+            if(myCalledFeat[i].funcKeyWord &&
+               myCalledFeat[i].lenth < 100 &&
+               myCalledFeat[i].calledNumber >= 10 &&
+               (myCalledFeat[i].haschar || !myCalledFeat[i].decl) &&
+               myCalledFeat[i].fileNumber >= 2){
+                
+                myCalledFeat[i].label = 1;
+                fputs(myCalledFeat[i].funcName.c_str(), out);
+                fputs("\n", out);
+                //outs()<<myCalledFeat[i].funcName<<"\n";
+                totalLoggingFunction++;
+                
+                logNames[logNamesCnt++] = myCalledFeat[i].funcName;
+                if(logNamesCnt == MAX_LOG_FUNC){
+                    errs()<<"Too many logging functions!\n";
+                    exit(1);
+                }
+            }
+        }
+        
+        for(int i = 1; i < myCalledFeatCnt; i++){
+            if(myCalledFeat[i].label != 1){
+                if(myCalledFeat[i].funcKeyWord && (myCalledFeat[i].calledNumber >= 100 || myCalledFeat[i].fileNumber >= 10)){
+                    
+                    myCalledFeat[i].label = 1;
+                    fputs(myCalledFeat[i].funcName.c_str(), out);
+                    fputs("\n", out);
+                    //outs()<<myCalledFeat[i].funcName<<"\n";
+                    totalLoggingFunction++;
+                    
+                    logNames[logNamesCnt++] = myCalledFeat[i].funcName;
+                    if(logNamesCnt == MAX_LOG_FUNC){
+                        errs()<<"Too many logging functions!\n";
+                        exit(1);
+                    }
+                }
+            }
+        }
+        llvm::errs()<<"Total logging functions: "<<totalLoggingFunction<<"\n";
+        
+        fclose(out);
     }
     
-	if(RecordCondition){
-		
-		myFuncLogInfoMap.clear();
-		myFuncLogInfoCnt = 0;
-		
-		readLoggedFunction();
-		
-		cntfunc = 0;
-		cntlog = 0;
-		cntulog = 0;
+    if(FindLoggedSnippet || LogScore){
         
-		FrontendFactory = newFrontendActionFactory<RecordCondAction>();	
-			
-		for(unsigned i = 0; i < source.size(); i++){
-			vector<string> mysource;
-			mysource.push_back(source[i]);
-			ClangTool Tool(OptionsParser.getCompilations(), mysource);
-			Tool.clearArgumentsAdjusters();
-			if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();	
-			Tool.setDiagnosticConsumer(idc);}
-			Tool.run(FrontendFactory.get());
-		}
-	
-		if(!DEBUG){
-			for(int i = 1; i < myFuncLogInfoCnt; i++){
-				myFuncLogInfo[i].simplify();
-				//myFuncLogInfo[i].print();
-				myFuncLogInfo[i].countCond(2);
-			}
-			llvm::errs()<<"total logged func: "<<myFuncLogInfoCnt<<"\n";
-			llvm::errs()<<"total checking cond: "<<cntlog<<"\n";
-			llvm::errs()<<"total unknown cond: "<<cntulog<<"\n";
+        llvm::errs()<<"Find logged snippets:\n";
+        
+        bool diag = true;
+        fileNum = 0;
+        lastName = "";
+        totalLoggedSnippet = 0;
+        
+        if(FindLoggedSnippet || !LogScore)
+            readLoggingFunction();
+        
+        FrontendFactory = newFrontendActionFactory<FindLoggedAction>();
+        
+        out = fopen("logged_snippet.out","w");
+        for(unsigned i = 0; i < source.size(); i++){
+            vector<string> mysource;
+            mysource.push_back(source[i]);
+            ClangTool Tool(OptionsParser.getCompilations(), mysource);
+            Tool.clearArgumentsAdjusters();
+            if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
+                Tool.setDiagnosticConsumer(idc);}
+            Tool.run(FrontendFactory.get());
+        }
+        
+        llvm::errs()<<"Total logged snippets: "<<totalLoggedSnippet<<"\n";
+        
+        fclose(out);
+    }
+    
+    if(LogScore){
+        outs()<<"funcName,funcKeyWord,fileName,fileKeyWord,lenth,flow,calledNumber,\
+            fileNumber,haschar,decl,label,logNumber\n";
+        for(int i = 1; i < myCalledFeatCnt; i++){
+            myCalledFeat[i].print();
+        }
+    }
 
-			for(int i = 1; i < myFuncLogInfoCnt; i++){
-				myFuncLogInfo[i].countArgu();
-			}
-		}
-	}
-	
-	if(InsertLog){
-		myFuncCondInfoMap.clear();
-		myFuncCondInfoCnt = 0;
-		
-		readInfluencingCond();
-		
-		totalLogNum = 0;
-		
-		FrontendFactory = newFrontendActionFactory<InsertLogAction>();
-		
-		for(unsigned i = 0; i < source.size(); i++){
-			vector<string> mysource;
-			mysource.push_back(source[i]);
-			ClangTool Tool(OptionsParser.getCompilations(), mysource);
-			Tool.clearArgumentsAdjusters();
-			if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();	
-			Tool.setDiagnosticConsumer(idc);}
-			Tool.run(FrontendFactory.get());
-		}
-		
-// 		for(int i = 1; i < myFuncCondInfoCnt; i++){
-// 			myFuncCondInfo[i].print();
-// 			llvm::errs()<<"\n";
-// 		}
-		
-		llvm::errs()<<"Total "<<totalLogNum<<" functions are logged!\n";
-		
-		//printResult();
-	}
-
-	if(FindLogFunction){
-		FrontendFactory = newFrontendActionFactory<FindLogAction>();
-		for(unsigned i = 0; i < source.size(); i++){
-			vector<string> mysource;
-			mysource.push_back(source[i]);
-			ClangTool Tool(OptionsParser.getCompilations(), mysource);
-			Tool.clearArgumentsAdjusters();
-			if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();	
-			Tool.setDiagnosticConsumer(idc);}
-			Tool.run(FrontendFactory.get());
-		}
-		
-	}
-	
-	if(CountReturnCode){
-		
-		returnCodeNum = 0;
-		totalReturnNum = 0;
-		
-		FrontendFactory = newFrontendActionFactory<CountRetAction>();
-		for(unsigned i = 0; i < source.size(); i++){
-			vector<string> mysource;
-			mysource.push_back(source[i]);
-			ClangTool Tool(OptionsParser.getCompilations(), mysource);
-			Tool.clearArgumentsAdjusters();
-			if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();	
-			Tool.setDiagnosticConsumer(idc);}
-			Tool.run(FrontendFactory.get());
-		}
-		
-		llvm::errs()<<"Total "<<returnCodeNum<<" error return code!\n";
-		llvm::errs()<<"Total "<<totalReturnNum<<" return statement!\n";
-	}
 	
 	return 0;
 }
