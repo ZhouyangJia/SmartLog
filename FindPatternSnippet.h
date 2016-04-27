@@ -1,13 +1,13 @@
 //
-//  FindLoggingFunction.hpp
+//  FindPatternSnippet.hpp
 //  LLVM
 //
 //  Created by ZhouyangJia on 16/4/13.
 //
 //
 
-#ifndef FindLoggingFunction_hpp
-#define FindLoggingFunction_hpp
+#ifndef FindPatternSnippet_h
+#define FindPatternSnippet_h
 
 #include <map>
 #include <vector>
@@ -15,6 +15,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
+
+
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Option/OptTable.h"
@@ -58,63 +60,51 @@ using namespace llvm;
 using namespace llvm::opt;
 
 
-struct FunctionFeat{
-	int calledNumber;
-	int fileNumber;
-	
-	string funcName;
-	bool funcKeyWord;
-	
-	string fileName;
-	bool fileKeyWord;
-	
-	int lenth;
-	bool flow;
+class FindPatternVisitor : public RecursiveASTVisitor <FindPatternVisitor> {
+public:
+    explicit FindPatternVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
     
-    bool decl;
-    bool haschar;
+    bool VisitFunctionDecl (FunctionDecl*);
     
-    int logNumber;
+    void travelStmt(Stmt*, Stmt*);
     
-	int label;
+    bool isLibFunction(CallExpr* );
     
-    string source;
+    CallExpr* searchCall(Stmt*);
     
-	void print();
+    bool searchLog(CallExpr*, Stmt*);
+    bool searchLog(string, Stmt*);
+    
+    void recordCallLog(CallExpr*, CallExpr*);
+    void recordCallLog(string, CallExpr*);
+    
+    StringRef expr2str(Stmt*);
+    
+    void readLogFunction();
+    
+    map<CallExpr*, int> hasRecorded;
+    
+    CompilerInstance* CI;
+    StringRef InFile;
+    
 };
 
-
-class FindLoggingVisitor : public RecursiveASTVisitor <FindLoggingVisitor> {
+class FindPatternConsumer : public ASTConsumer {
 public:
-	explicit FindLoggingVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
-	
-	bool VisitFunctionDecl (FunctionDecl*);
-	
-	void travelStmt(Stmt*);	
-	
-    string expr2str(Stmt*);
-	string getfile(string);
-	bool hasKeyWord(string);
-    bool hasChar(QualType);
-	
+    explicit FindPatternConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
+    virtual void HandleTranslationUnit (clang::ASTContext &Context);
 private:
-	CompilerInstance* CI;
-	StringRef InFile;
+    FindPatternVisitor Visitor;
+    StringRef InFile;
 };
 
-class FindLoggingConsumer : public ASTConsumer {
+class FindPatternAction : public ASTFrontendAction {
 public:
-	explicit FindLoggingConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
-	virtual void HandleTranslationUnit (clang::ASTContext &Context);
-private:
-	FindLoggingVisitor Visitor;
-	StringRef InFile;
-};
-
-class FindLoggingAction : public ASTFrontendAction {
-public:
-	virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
+    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
 private:
 };
 
-#endif /* FindLoggedSnippet_hpp */
+#endif /* FindPatternSnippet_h */
+
+
+

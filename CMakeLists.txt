@@ -8,6 +8,8 @@ add_clang_executable(clang-mytool
   MyTool.cpp
   FindLoggingFunction.cpp
   FindLoggedSnippet.cpp
+  FindOutputSnippet.cpp
+  FindPatternSnippet.cpp
   )
 
 target_link_libraries(clang-mytool

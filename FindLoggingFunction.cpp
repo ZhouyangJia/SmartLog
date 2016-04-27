@@ -6,8 +6,9 @@
 //
 //
 
-#include "MyTool.hpp"
-#include "FindLoggingFunction.hpp"
+#include "MyTool.h"
+#include "FindLoggingFunction.h"
+//#include "Python.h"
 
 extern string lastName;
 extern int fileNum;
@@ -22,7 +23,14 @@ extern int myCalledFeatCnt;
 map<string, int> fileNumMap;
 
 void FunctionFeat::print(){
-	outs()<<funcName<<","<<funcKeyWord<<","<<fileName<<","<<fileKeyWord<<","<<lenth<<","<<flow<<","<<calledNumber<<","<<fileNumber<<","<<haschar<<","<<decl<<","<<label<<","<<logNumber<<"\n";
+    
+    /*string::size_type pos=0;
+    while((pos=funcName.find(',',pos))!=string::npos)
+    {
+        funcName.at(pos) = ';';
+        pos+=1;
+    }*/
+    outs()<<funcName<<","<<funcKeyWord<<","<<fileName<<","<<fileKeyWord<<","<<lenth<<","<<flow<<","<<calledNumber<<","<<fileNumber<<","<<haschar<<","<<decl<<","<<label<<"\n";
 }
 
 
@@ -83,9 +91,66 @@ bool FindLoggingVisitor::hasChar(QualType qt){
 }
 
 
+
+string* FindLoggingVisitor::spiltWord(string name){
+    
+/*    Py_Initialize();
+    
+    if ( !Py_IsInitialized() )
+    {
+        return 0;
+    }
+
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.append('/Users/zhouyangjia/github/segment')");
+    PyObject *pName,*pModule,*pDict,*pFunc,*pArgs;
+
+    pName = PyString_FromString("segment.py");
+    
+    pModule = PyImport_Import(pName);
+    if ( !pModule )
+    {
+        printf("can't find segment.py");
+        getchar();
+        return 0;
+    }
+    
+    pDict = PyModule_GetDict(pModule);
+    if ( !pDict )
+    {
+        return 0;
+    }
+    
+    pFunc = PyDict_GetItemString(pDict, "segment");
+    if ( !pFunc || !PyCallable_Check(pFunc) )
+    {
+        printf("can't find function [segment]");
+        getchar();
+        return 0;
+    }
+
+    pArgs = PyTuple_New(2);
+    PyTuple_SetItem(pArgs, 0, Py_BuildValue("l",3));
+    PyTuple_SetItem(pArgs, 1, Py_BuildValue("l",4));
+
+    PyObject_CallObject(pFunc, pArgs);
+    
+    Py_DECREF(pName);
+    Py_DECREF(pArgs);
+    Py_DECREF(pModule);
+    
+    Py_Finalize();
+    */
+    return 0;
+}
+
+
 bool FindLoggingVisitor::hasKeyWord(string name){
 	
 	transform(name.begin(), name.end(), name.begin(), ::tolower);  //::toupper
+    
+    //string* spilted;
+    //spilted = spiltWord(name);
 	
 	string word[30] = {
             "log",	//exclude binlog, logic
@@ -110,8 +175,12 @@ bool FindLoggingVisitor::hasKeyWord(string name){
 			"out", 		//exclude pullout, timeout, routine, layout,
 			"warn", 	//exclude 
 			"debug"  	//exclude
+        
+            "emerg"
+            "alert"
+            "crit"
 			
-			//"note",	//deleted 
+			//"note",	//deleted
 			//"list" 	//deleted
 			//"dialog"  	//included
 			//"output"  	//included
@@ -157,7 +226,7 @@ void FindLoggingVisitor::travelStmt(Stmt* stmt){
 	if(CallExpr* callExpr = dyn_cast<CallExpr>(stmt)){
 		if(FunctionDecl* functionDeal = callExpr->getDirectCallee()){
 			
-			string name = functionDeal->getQualifiedNameAsString();
+            string name = functionDeal->getNameAsString();
 			if(myCalledFeatMap[name] == 0){
 				myCalledFeatMap[name] = ++myCalledFeatCnt;
 			}
@@ -208,7 +277,7 @@ bool FindLoggingVisitor::VisitFunctionDecl(FunctionDecl* Declaration) {
 	
 	if(Declaration->getBody()){
 	
-		string name = Declaration->getQualifiedNameAsString();
+        string name = Declaration->getNameAsString();
 		
 		if(myCalledFeatMap[name] == 0){
 			myCalledFeatMap[name] = ++myCalledFeatCnt;
@@ -249,8 +318,7 @@ bool FindLoggingVisitor::VisitFunctionDecl(FunctionDecl* Declaration) {
 	return true;
 }
 
-void FindLoggingConsumer::
-HandleTranslationUnit(ASTContext& Context) {
+void FindLoggingConsumer::HandleTranslationUnit(ASTContext& Context) {
 	fileNumMap.clear();
 	Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 	return;

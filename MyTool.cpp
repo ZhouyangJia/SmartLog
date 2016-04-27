@@ -6,9 +6,11 @@
 //
 //
 
-#include "MyTool.hpp"
-#include "FindLoggingFunction.hpp"
-#include "FindLoggedSnippet.hpp"
+#include "MyTool.h"
+#include "FindLoggingFunction.h"
+#include "FindLoggedSnippet.h"
+#include "FindOutputSnippet.h"
+#include "FindPatternSnippet.h"
 
 //record the called-time of each function
 FunctionFeat myCalledFeat[MAX_FUNC_NUM];
@@ -27,6 +29,8 @@ FILE* out;
 
 int totalLoggingFunction;
 int totalLoggedSnippet;
+int totalOutputSnippet;
+int totalPatternSnippet;
 
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
@@ -51,6 +55,14 @@ static std::unique_ptr<opt::OptTable> Options(createDriverOptTable());
 static cl::opt<bool> FindLoggingFunction("find-logging-function",
                                      cl::desc("Find logging functions."),
                                      cl::cat(ClangMytoolCategory));
+
+static cl::opt<bool> FindOutputSnippet("find-output-snippet",
+                                       cl::desc("Find output snippets."),
+                                       cl::cat(ClangMytoolCategory));
+
+static cl::opt<bool> FindPatternSnippet("find-pattern-snippet",
+                                       cl::desc("Find pattern snippets."),
+                                       cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> FindLoggedSnippet("find-logged-snippet",
                                        cl::desc("Find logged snippets."),
@@ -85,6 +97,31 @@ void readLoggingFunction(){
     }
 }
 
+
+void readFunctionFlow(){
+    
+    if((in = fopen("./function_flow.out","r")) == NULL) {
+        errs()<<"Miss the need log function file \"function_flow.out\".\n";
+    }
+    else {
+        while(!feof(in)) {
+            char buf[300];
+            fgets(buf, 300, in);
+            if(strlen(buf) <= 1) break;
+            buf[strlen(buf)-1] = '\0';
+            string name = buf;
+            
+            //outs()<<name<<"\n";
+            
+            int index = myCalledFeatMap[name];
+            myCalledFeat[index].flow = 1;
+
+        }
+        fclose(in);
+    }
+    
+}
+
 int main(int argc, const char **argv) {
 	
 	CommonOptionsParser OptionsParser(argc, argv, ClangMytoolCategory);
@@ -93,7 +130,7 @@ int main(int argc, const char **argv) {
     
     std::unique_ptr<FrontendActionFactory> FrontendFactory;
     
-    if(FindLoggingFunction || LogScore){
+    if(FindLoggingFunction){
         
         llvm::errs()<<"Find logging functions:\n";
         
@@ -166,10 +203,76 @@ int main(int argc, const char **argv) {
         }
         llvm::errs()<<"Total logging functions: "<<totalLoggingFunction<<"\n";
         
+        readFunctionFlow();
+        
+        outs()<<"funcName,funcKeyWord,fileName,fileKeyWord,lenth,flow,calledNumber,fileNumber,haschar,decl,label\n";
+        for(int i = 1; i < myCalledFeatCnt; i++){
+            myCalledFeat[i].print();
+        }
+        
         fclose(out);
     }
     
-    if(FindLoggedSnippet || LogScore){
+    if(FindOutputSnippet){
+        
+        llvm::errs()<<"Find output snippets:\n";
+        
+        bool diag = true;
+        fileNum = 0;
+        lastName = "";
+        totalOutputSnippet = 0;
+        
+        readLoggingFunction();
+        
+        FrontendFactory = newFrontendActionFactory<FindOutputAction>();
+        
+        out = fopen("output_snippet.out","w");
+        for(unsigned i = 0; i < source.size(); i++){
+            vector<string> mysource;
+            mysource.push_back(source[i]);
+            ClangTool Tool(OptionsParser.getCompilations(), mysource);
+            Tool.clearArgumentsAdjusters();
+            if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
+                Tool.setDiagnosticConsumer(idc);}
+            Tool.run(FrontendFactory.get());
+        }
+        
+        llvm::errs()<<"Total output snippets: "<<totalOutputSnippet<<"\n";
+        
+        fclose(out);
+    }
+    
+    if(FindPatternSnippet){
+        
+        llvm::errs()<<"Find pattern snippets:\n";
+        
+        bool diag = true;
+        fileNum = 0;
+        lastName = "";
+        totalPatternSnippet = 0;
+        
+        readLoggingFunction();
+        
+        FrontendFactory = newFrontendActionFactory<FindPatternAction>();
+        
+        out = fopen("pattern_snippet.out","w");
+        for(unsigned i = 0; i < source.size(); i++){
+            vector<string> mysource;
+            mysource.push_back(source[i]);
+            ClangTool Tool(OptionsParser.getCompilations(), mysource);
+            Tool.clearArgumentsAdjusters();
+            if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
+                Tool.setDiagnosticConsumer(idc);}
+            Tool.run(FrontendFactory.get());
+        }
+        
+        llvm::errs()<<"Total pattern snippets: "<<totalPatternSnippet<<"\n";
+        
+        fclose(out);
+    }
+    
+    
+    if(FindLoggedSnippet){
         
         llvm::errs()<<"Find logged snippets:\n";
         
@@ -178,8 +281,7 @@ int main(int argc, const char **argv) {
         lastName = "";
         totalLoggedSnippet = 0;
         
-        if(FindLoggedSnippet || !LogScore)
-            readLoggingFunction();
+        readLoggingFunction();
         
         FrontendFactory = newFrontendActionFactory<FindLoggedAction>();
         
@@ -200,11 +302,7 @@ int main(int argc, const char **argv) {
     }
     
     if(LogScore){
-        outs()<<"funcName,funcKeyWord,fileName,fileKeyWord,lenth,flow,calledNumber,\
-            fileNumber,haschar,decl,label,logNumber\n";
-        for(int i = 1; i < myCalledFeatCnt; i++){
-            myCalledFeat[i].print();
-        }
+
     }
 
 	

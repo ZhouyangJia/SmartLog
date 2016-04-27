@@ -6,8 +6,8 @@
 //
 //
 
-#ifndef MyTool_hpp
-#define MyTool_hpp
+#ifndef MyTool_h
+#define MyTool_h
 
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Option/OptTable.h"
@@ -31,4 +31,4 @@ using namespace std;
 #define MAX_FUNC_NUM 100000
 #define MAX_LOG_FUNC 1000
 
-#endif /* MyTool_hpp */
+#endif /* MyTool_h */
