@@ -4,15 +4,16 @@ set( LLVM_LINK_COMPONENTS
   Support
   )
 
-add_clang_executable(clang-mytool
-  MyTool.cpp
-  FindLoggingFunction.cpp
-  FindLoggedSnippet.cpp
-  FindOutputSnippet.cpp
-  FindPatternSnippet.cpp
+add_clang_executable(clang-smartlog
+  src/SmartLog.cpp
+  src/FindLoggingFunction.cpp
+  src/FindLoggedSnippet.cpp
+  src/FindOutputSnippet.cpp
+  src/FindPatternSnippet.cpp
+  src/FindKeywordFunction.cpp
   )
 
-target_link_libraries(clang-mytool
+target_link_libraries(clang-smartlog
   clangAST
   clangBasic
   clangDriver
@@ -22,5 +23,5 @@ target_link_libraries(clang-mytool
   clangTooling
   )
 
-install(TARGETS clang-mytool
+install(TARGETS clang-smartlog
   RUNTIME DESTINATION bin)
