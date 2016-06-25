@@ -54,46 +54,78 @@ def print_call_snippet(call_loc):
 	print "/*************** source code snippet begin ***************/"
 	for i in range(mymin, mymax):
 		if i == call_loc_line:
-			print "CHOOSE:",
+			print "CALL:",
 		print linecache.getline(call_loc_file,i).strip('\n')
 	print "/*************** source code snippet end ***************/"
 
 def check_snippet(call_list, num):
 
-	result_dict = {}
+	true = num
+	false = num
 
-	while num != 0:
+	true_list = []
+	false_list = []
+	not_log_list = []
+	not_sure_list = []
+
+	while True:
 
 		call_loc = random.choice(call_list)
 
 		print_call_snippet(call_loc)
 
-		print str(num) + "  cases left!"
-		choice = input("Please check above snippet:(0 not output, 1 for result, 2 for audit, 3 for debug, 4 for log, 5 others)\n")
+		print str(true) + " true cases left and "+ str(false) + " false cases left!" 
+		choice = input("Please check above snippet:(0 for No, 1 for Yes, 2 for Not Sure)\n")
 
-		if int(choice) >= 1 and int(choice) <= 5:
-			result_dict[call_loc] = choice
-			num -= 1
-		elif int(choice) == 0:
-			result_dict[call_loc] = choice
-		elif int(choice) == 9:
-			pass
+	
+		if choice == 0:
+			false -= 1
+			false_list.append(call_loc)
+			print "Choice No!"
+		elif choice == 1:
+			true -= 1
+			true_list.append(call_loc)
+			print "Choice Yes!"
+		elif choice == 2:
+			not_sure_list.append(call_loc)
+			print "Not Sure!"
 		else:
 			print "Invalid input!"
 
-	return result_dict
+		if true <= 0 and false <= 0:
+			break
 
-def print_result(result_dict):
+	return true_list,false_list,not_log_list,not_sure_list
+
+def print_result(true_list,false_list,not_log_list,not_sure_list):
 
 	result_file = open("sample_result.out", 'w')
 
-	for item in result_dict:
-		print item, result_dict[item]
+	print "/*************** Final result ***************/"
+
+	print "False cases:"
+	for item in false_list:
+		print item
 		call_loc_file = item[0]
 		call_loc_line = item[1]
-		result_file.write(call_loc_file.strip('\n') + ':' + call_loc_line)
-		result_file.write(' ' + str(result_dict[item]) + '\n')
+		result_file.write(call_loc_file.strip('\n'))
+		result_file.write(':')
+		result_file.write(call_loc_line)
+		result_file.write(' 0\n')
 
+	print "True cases:"
+	for item in true_list:
+		print item
+		call_loc_file = item[0]
+		call_loc_line = item[1]
+		result_file.write(call_loc_file.strip('\n'))
+		result_file.write(':')
+		result_file.write(call_loc_line)
+		result_file.write(' 1\n')
+			
+	print "Not Sure:"
+	for item in not_sure_list:
+		print item
 
 if __name__ == '__main__':
 
@@ -102,6 +134,6 @@ if __name__ == '__main__':
 	call_list = get_call_list(path)
 
 	num = input("Please input the number of snippet to tag:\n")
+	true_list,false_list,not_log_list,not_sure_list = check_snippet(call_list,num)
 
-	result_dict = check_snippet(call_list,int(num))
-	print_result(result_dict)
+	print_result(true_list,false_list,not_log_list,not_sure_list)

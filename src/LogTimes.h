@@ -1,13 +1,13 @@
 //
-//  FindLoggedSnippet.h
+//  LogTimes.h
 //  LLVM
 //
-//  Created by ZhouyangJia on 16/4/13.
+//  Created by ZhouyangJia on 16/5/11.
 //
 //
 
-#ifndef FindLoggedSnippet_hpp
-#define FindLoggedSnippet_hpp
+#ifndef LogTimes_h
+#define LogTimes_h
 
 #include <map>
 #include <vector>
@@ -57,54 +57,52 @@ using namespace clang;
 using namespace llvm;
 using namespace llvm::opt;
 
+struct LogTime{
+    
+    LogTime(){
+        name = "";
+        call_time = 0;
+        log_time = 0;
+        log_level = 0;
+    }
+    
+    string name;
+    int call_time;
+    int log_time;
+    int log_level;
+    
+    void print();
+};
 
-class FindLoggedVisitor : public RecursiveASTVisitor <FindLoggedVisitor> {
+class LogTimesVisitor : public RecursiveASTVisitor <LogTimesVisitor> {
 public:
-    explicit FindLoggedVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
+    explicit LogTimesVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
     
     bool VisitFunctionDecl (FunctionDecl*);
     
-    void travelStmt(Stmt*, Stmt*);
+    void travelStmt(Stmt*);
     
-    CallExpr* searchLog(Stmt*);
-    CallExpr* searchCall(Stmt*);
+    string expr2str(Stmt*);
     
-    void recordCallLog(CallExpr*, CallExpr*);
-    
-    StringRef expr2str(Stmt*);
-    void readLogFunction();
-    
-    ///recode the call-log pairs
-    //code
-    //  ret = foo();
-    //  if(ret)
-    //      log();
-    //\code
-    CallExpr *myCallExpr;   //foo()
-    CallExpr *myLogExpr;    //log()
-    StringRef myReturnName; //ret
-    
+private:
     CompilerInstance* CI;
     StringRef InFile;
-    
 };
 
-class FindLoggedConsumer : public ASTConsumer {
+class LogTimesConsumer : public ASTConsumer {
 public:
-    explicit FindLoggedConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
+    explicit LogTimesConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
     virtual void HandleTranslationUnit (clang::ASTContext &Context);
 private:
-    FindLoggedVisitor Visitor;
+    LogTimesVisitor Visitor;
     StringRef InFile;
 };
 
-class FindLoggedAction : public ASTFrontendAction {
+class LogTimesAction : public ASTFrontendAction {
 public:
     virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
 private:
 };
 
-#endif /* FindLoggedSnippet_hpp */
 
-
-
+#endif /* LogTimes_h */

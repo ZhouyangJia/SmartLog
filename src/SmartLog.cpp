@@ -1,5 +1,5 @@
 //
-//  MyTool.cpp
+//  SmartLog.cpp
 //  LLVM
 //
 //  Created by ZhouyangJia on 16/4/13.
@@ -12,31 +12,68 @@
 #include "FindLoggedSnippet.h"
 #include "FindOutputSnippet.h"
 #include "FindPatternSnippet.h"
+#include "LogTimes.h"
 
-//record the called-time of each function
-FunctionFeat myCalledFeat[MAX_FUNC_NUM];
-map<string, int> myCalledFeatMap;
-int myCalledFeatCnt;
 
-map<string, int> myKeywordFunc;
-
+///shared variables
+//count files
 string lastName;
 int fileNum;
 int fileTotalNum;
 
-string logNames[MAX_LOG_FUNC];
-int logNamesCnt;
-
+//input and output files
 FILE* in;
 FILE* out;
 FILE* out2;
 
+
+///for find-logging-function
+//record the features of each function
+FunctionFeat myCalledFeat[MAX_FUNC_NUM];
+map<string, int> myCalledFeatMap;
+int myCalledFeatCnt;
+
+//count results
+int totalLoggingFunction;
+
+
+///for find-keyword-function
+//record visited functions
+map<string, int> myKeywordFunc;
+
+//count results
 int totalKeywordFunction;
 int totalKeywordCallsite;
-int totalLoggingFunction;
+
+
+///for find-*-snippet
+//choose the type of logging functions
+enum logging_function{
+    LOGGING_FUNCTION,
+    KEYWORD_FUNCTION
+};
+
+//record logging functions
+string logNames[MAX_LOG_FUNC];
+int logNamesCnt;
+
+//count results
 int totalLoggedSnippet;
 int totalOutputSnippet;
 int totalPatternSnippet;
+
+
+///for log-times
+//record function info
+LogTime myLogTime[MAX_FUNC_NUM];
+map<string, int> myLogTimeMap;
+int myLogTimeCnt;
+
+//record logged snippet
+string myFuncNames[MAX_FUNC_NUM];
+string myLogNames[MAX_FUNC_NUM];
+//string myLocNames[MAX_FUNC_NUM];
+int myNamesCnt;
 
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
@@ -78,16 +115,112 @@ static cl::opt<bool> FindLoggedSnippet("find-logged-snippet",
                                        cl::desc("Find logged snippets."),
                                        cl::cat(ClangMytoolCategory));
 
+static cl::opt<bool> LogTimes("log-times",
+                              cl::desc("Calculate log times of each function."),
+                              cl::cat(ClangMytoolCategory));
+
 static cl::opt<bool> LogScore("log-score",
                              cl::desc("Calculate log score."),
                              cl::cat(ClangMytoolCategory));
 
-void readLoggingFunction(){
+
+///read logged snippet
+void readLoggedFunction(){
+    
+    myNamesCnt = 0;
+    
+    in = fopen("./logged_snippet.out", "r");
+    
+    if(in == NULL) {
+        errs()<<"Miss file \"logged_snippet_key.out\".\n";
+    }
+    else {
+        while(!feof(in)) {
+            char buf[300];
+            fgets(buf, 300, in);
+            if(strlen(buf) <= 1) break;
+            buf[strlen(buf)-1] = '\0';
+            
+            string name = buf;
+            string funcLocFile;
+            string funcLocLine;
+            string logName;
+            string logLocFile;
+            string logLocLine;
+            
+            logLocLine = name.substr(name.find_last_of(':') + 1, string::npos);
+            name = name.substr(0, name.find_last_of(':'));
+            
+            logLocFile = name.substr(name.find_last_of('@') + 1, string::npos);
+            name = name.substr(0, name.find_last_of('@'));
+            
+            logName = name.substr(name.find_last_of('#') + 1, string::npos);
+            name = name.substr(0, name.find_last_of('#'));
+            
+            funcLocLine = name.substr(name.find_last_of(':') + 1, string::npos);
+            name = name.substr(0, name.find_last_of(':'));
+            
+            funcLocFile = name.substr(name.find_last_of('@') + 1, string::npos);
+            name = name.substr(0, name.find_last_of('@'));
+            
+            //int funcLine = atoi(funcLocLine.c_str());
+            //int logLine = atoi(logLocLine.c_str());
+            myFuncNames[myNamesCnt] = name;
+            myLogNames[myNamesCnt] = logName;
+            //myLocNames[myNamesCnt] = logLocFile.append(logLocLine);
+            myNamesCnt++;
+        }
+        fclose(in);
+    }
+}
+
+int getLevel(string name){
+    
+    if(name.find("crit") != string::npos || name.find("emerg") != string::npos){
+        return 5;
+    }
+    
+    if(name.find("alert") != string::npos || name.find("err") != string::npos || name.find("die") != string::npos
+       || name.find("fail") != string::npos || name.find("crit") != string::npos){
+        return 4;
+    }
+    
+    if(name.find("log") != string::npos || name.find("assert") != string::npos || name.find("warn") != string::npos
+       || name.find("print") != string::npos){
+        return 3;
+    }
+    
+    if(name.find("out") != string::npos || name.find("out") != string::npos || name.find("write") != string::npos
+       || name.find("dump") != string::npos || name.find("msg") != string::npos || name.find("message") != string::npos
+       || name.find("hint") != string::npos || name.find("trace") != string::npos || name.find("report") != string::npos
+       || name.find("record")){
+        return 2;
+    }
+
+    if(name.find("debug") != string::npos){
+        return 1;
+    }
+
+    return 0;
+}
+
+
+///read logging function
+void readLoggingFunction(enum logging_function logging_method){
     
     logNamesCnt = 0;
     
-    if((in = fopen("./keyword_function.out","r")) == NULL) {
-        errs()<<"Miss the need log function file \"logging_function.out\".\n";
+    if(logging_method == LOGGING_FUNCTION)
+        in = fopen("./logging_function.out", "r");
+    else if(logging_method == KEYWORD_FUNCTION)
+        in = fopen("./keyword_function.out","r");
+    else{
+        errs()<<"Error logging method!\n";
+        return;
+    }
+    
+    if(in == NULL) {
+        errs()<<"Miss file \"logging_function.out\".\n";
     }
     else {
         while(!feof(in)) {
@@ -108,10 +241,11 @@ void readLoggingFunction(){
 }
 
 
+///read data flow feature, got from IR, used for choose logging funtions
 void readFunctionFlow(){
     
     if((in = fopen("./function_flow.out","r")) == NULL) {
-        errs()<<"Miss the need log function file \"function_flow.out\".\n";
+        errs()<<"Miss file \"function_flow.out\".\n";
     }
     else {
         while(!feof(in)) {
@@ -129,7 +263,6 @@ void readFunctionFlow(){
         }
         fclose(in);
     }
-    
 }
 
 
@@ -252,6 +385,12 @@ int main(int argc, const char **argv) {
             Tool.run(FrontendFactory.get());
         }
         
+        
+        /*FrontendFactory = newFrontendActionFactory<FindKeywordAction>();
+        ClangTool Tool(OptionsParser.getCompilations(), source);
+        Tool.run(FrontendFactory.get());*/
+        
+        
         llvm::errs()<<"Total keyword functions: "<<totalKeywordFunction<<"\n";
         llvm::errs()<<"Total keyword callsites: "<<totalKeywordCallsite<<"\n";
         
@@ -268,7 +407,9 @@ int main(int argc, const char **argv) {
         lastName = "";
         totalOutputSnippet = 0;
         
-        readLoggingFunction();
+        enum logging_function loggingMethod;
+        loggingMethod = KEYWORD_FUNCTION;
+        readLoggingFunction(loggingMethod);
         
         FrontendFactory = newFrontendActionFactory<FindOutputAction>();
         
@@ -297,7 +438,9 @@ int main(int argc, const char **argv) {
         lastName = "";
         totalPatternSnippet = 0;
         
-        readLoggingFunction();
+        enum logging_function loggingMethod;
+        loggingMethod = KEYWORD_FUNCTION;
+        readLoggingFunction(loggingMethod);
         
         FrontendFactory = newFrontendActionFactory<FindPatternAction>();
         
@@ -327,7 +470,9 @@ int main(int argc, const char **argv) {
         lastName = "";
         totalLoggedSnippet = 0;
         
-        readLoggingFunction();
+        enum logging_function loggingMethod;
+        loggingMethod = LOGGING_FUNCTION;
+        readLoggingFunction(loggingMethod);
         
         FrontendFactory = newFrontendActionFactory<FindLoggedAction>();
         
@@ -344,6 +489,52 @@ int main(int argc, const char **argv) {
         
         llvm::errs()<<"Total logged snippets: "<<totalLoggedSnippet<<"\n";
         
+        fclose(out);
+    }
+    
+    if(LogTimes){
+        
+        llvm::errs()<<"Calculate log times:\n";
+        
+        bool diag = true;
+        fileNum = 0;
+        lastName = "";
+        
+        myLogTimeMap.clear();
+        myLogTimeCnt = 0;
+        
+        out = fopen("log_times","w");
+        
+        FrontendFactory = newFrontendActionFactory<LogTimesAction>();
+        for(unsigned i = 0; i < source.size(); i++){
+            vector<string> mysource;
+            mysource.push_back(source[i]);
+            ClangTool Tool(OptionsParser.getCompilations(), mysource);
+            Tool.clearArgumentsAdjusters();
+            if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
+                Tool.setDiagnosticConsumer(idc);}
+            Tool.run(FrontendFactory.get());
+        }
+        
+        readLoggedFunction();
+        
+        for(int i = 0; i < myNamesCnt; i++){
+            //outs()<<myFuncNames[i]<<"#";
+            //outs()<<myLogNames[i]<<"\n";
+            
+            int index = myLogTimeMap[myFuncNames[i]];
+            if(index != 0){
+                myLogTime[index].log_time++;
+                myLogTime[index].log_level += getLevel(myLogNames[i]);
+            }
+            //myLogTimeMap[myFuncNames[i]] = 0;
+        }
+        
+        for(int i = 1; i < myLogTimeCnt; i++){
+            myLogTime[i].print();
+        }
+        //outs()<<"Total function: "<<myLogTimeCnt<<"\n";
+
         fclose(out);
     }
     

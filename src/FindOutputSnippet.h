@@ -16,8 +16,6 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
-
-
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/CommandLine.h"

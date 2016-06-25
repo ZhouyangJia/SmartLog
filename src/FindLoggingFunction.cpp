@@ -18,9 +18,6 @@ extern FunctionFeat myCalledFeat[MAX_FUNC_NUM];
 extern map<string, int> myCalledFeatMap;
 extern int myCalledFeatCnt;
 
-extern vector<CallExpr> outputCall;
-
-
 //refresh before each file,add called times for the first appearance of function is this file
 map<string, int> fileNumMap;
 
@@ -189,7 +186,8 @@ bool FindLoggingVisitor::hasKeyWord(string name){
 			//"output"  	//included
 	}; 
 	
-	string nword[30] = {"binlog",
+	string nword[30] = {
+            "binlog",
 			"logic",
 			"parse",
 			"input",

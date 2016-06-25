@@ -19,7 +19,6 @@ extern int logNamesCnt;
 
 extern int totalLoggedSnippet;
 
-extern FILE* in;
 extern FILE* out;
 
 

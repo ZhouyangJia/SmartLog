@@ -19,10 +19,8 @@ extern map<string, int> myKeywordFunc;
 extern int totalKeywordFunction;
 extern int totalKeywordCallsite;
 
-extern FILE* in;
 extern FILE* out;
 extern FILE* out2;
-
 
 ///get the source code of stmt
 string FindKeywordVisitor::expr2str(Stmt *s){
@@ -111,40 +109,36 @@ bool FindKeywordVisitor::hasKeyWord(string name){
     //spilted = spiltWord(name);
 	
 	string word[30] = {
-            "log",	//exclude binlog, logic
-			"error", 	//exclude parse, 
-			"err", 		//?
-			"die",		//?
-			"fail",		//?
+            "log",
+			"error", 
+			"err", 	
+			"die",	
+			"fail",	
 			
-			"hint", 	//?
-			"put", 		//exclude input, 
-			"assert",	//exclude 
-			"trace",	//exclude 
-			"print", 	//exclude sprintf, snprintf, vsnprintf
+			"hint", 
+			"put", 	
+			"assert",
+			"trace",
+			"print", 
 			
-			"write", 	//exclude 
-			"report", 	//exclude 
-			"record", 	//exclude 
-			"dump", 	//exclude 
-			"msg", 		//exclude 
+			"write", 
+			"report",
+			"record",
+			"dump", 
+			"msg", 	
 			
-			"message",	//exclude  
-			"out", 		//exclude pullout, timeout, routine, layout,
-			"warn", 	//exclude 
-			"debug"  	//exclude
-        
+			"message",
+			"out", 	
+			"warn", 
+			"debug"
             "emerg"
+        
             "alert"
             "crit"
-			
-			//"note",	//deleted
-			//"list" 	//deleted
-			//"dialog"  	//included
-			//"output"  	//included
 	}; 
 	
-	string nword[30] = {"binlog",
+	/*string nword[30] = {
+            "binlog",
 			"logic",
 			"parse",
 			"input",
@@ -159,21 +153,21 @@ bool FindKeywordVisitor::hasKeyWord(string name){
 			"strerror",
 			"putc",
 			"layout"
-	};
+	};*/
 	
-	for(int i = 0; i < 30; i++){
+	/*for(int i = 0; i < 30; i++){
 		if(nword[i].length() == 0)
 			break;
 		if(name.find(nword[i]) < name.length() && (name.find_last_of(':') == string::npos || name.find(nword[i]) > name.find_last_of(':')))
 			return false;
-	}
+	}*/
 	
 	for(int i = 0; i < 30; i++){
 		if(word[i].length() == 0)
 			break;
 		if(name.find(word[i]) < name.length() && (name.find_last_of(':') == string::npos || name.find(word[i]) > name.find_last_of(':')))
 			return true;
-	}	
+	}
 	
 	return false;
 }
@@ -182,11 +176,12 @@ bool FindKeywordVisitor::hasKeyWord(string name){
 void FindKeywordVisitor::travelStmt(Stmt* stmt){
 	
 	if(CallExpr* callExpr = dyn_cast<CallExpr>(stmt)){
-        if(FunctionDecl* functionDeal = callExpr->getDirectCallee()){
+        
+        if(FunctionDecl* functionDecl = callExpr->getDirectCallee()){
             
-            string name = functionDeal->getNameAsString();
+            string name = functionDecl->getNameAsString();
             
-            if(hasKeyWord(getfile(name))){
+            if(hasKeyWord(name)){
                 
                 ///record keyword function
                 if(myKeywordFunc[name] == 0){
@@ -231,6 +226,10 @@ bool FindKeywordVisitor::VisitFunctionDecl(FunctionDecl* Declaration) {
 	//errs()<<"Found function "<<Declaration->getQualifiedNameAsString() ;
 	//errs()<<" @ " << functionstart.printToString(functionstart.getManager()) <<"\n";
 	
+    /*if("actions_init" == Declaration->getQualifiedNameAsString())
+        Declaration->getBody()->dump();
+    return true;*/
+    
 	if(Declaration->getBody()){
 
 		travelStmt(Declaration->getBody());	

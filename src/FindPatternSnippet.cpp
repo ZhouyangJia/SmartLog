@@ -19,7 +19,6 @@ extern int logNamesCnt;
 
 extern int totalPatternSnippet;
 
-extern FILE* in;
 extern FILE* out;
 
 
@@ -28,7 +27,7 @@ StringRef FindPatternVisitor::expr2str(Stmt *s){
     
     if(!s)
         return "";
-    
+
     FullSourceLoc begin = CI->getASTContext().getFullLoc(s->getLocStart());
     FullSourceLoc end = CI->getASTContext().getFullLoc(s->getLocEnd());
     
@@ -134,7 +133,7 @@ bool FindPatternVisitor::searchLog(string reason, Stmt* stmt){
             StringRef logName = functionDecl->getQualifiedNameAsString();
             
             for(int i = 0; i < logNamesCnt-1; i++){
-                if(logNames[i].find(logName) != string::npos){
+                if(logNames[i] == logName){
                     recordCallLog(reason, logExpr);
                     return 1;
                 }

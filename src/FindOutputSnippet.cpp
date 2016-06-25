@@ -19,7 +19,6 @@ extern int logNamesCnt;
 
 extern int totalOutputSnippet;
 
-extern FILE* in;
 extern FILE* out;
 
 
@@ -93,7 +92,7 @@ void FindOutputVisitor::searchLog(CallExpr * callExpr, Stmt *stmt){
             StringRef logName = functionDecl->getQualifiedNameAsString();
             
             for(int i = 0; i < logNamesCnt-1; i++){
-                if(logNames[i].find(logName) != string::npos){
+                if(logNames[i] == logName){
                     recordCallLog(callExpr, logExpr);
                     break;
                     //return;
@@ -179,13 +178,13 @@ void FindOutputVisitor::travelStmt(Stmt *stmt, Stmt *father){
     }
     
     ///find foo(), search its brother node
-    if(CallExpr *callExpr = dyn_cast<CallExpr>(stmt)){
+    /*if(CallExpr *callExpr = dyn_cast<CallExpr>(stmt)){
         for(Stmt::child_iterator bro = father->child_begin(); bro != father->child_end(); ++bro){
             if(Stmt *brother = *bro){
                 searchLog(callExpr, brother);
             }
         }
-    }
+    }*/
     
     for(Stmt::child_iterator it = stmt->child_begin(); it != stmt->child_end(); ++it){
         if(Stmt *child = *it)
