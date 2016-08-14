@@ -11,6 +11,8 @@ add_clang_executable(clang-smartlog
   src/FindOutputSnippet.cpp
   src/FindPatternSnippet.cpp
   src/FindKeywordFunction.cpp
+  src/LogTimes.cpp
+  src/InsertLog.cpp
   )
 
 target_link_libraries(clang-smartlog

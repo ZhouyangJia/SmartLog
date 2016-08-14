@@ -174,6 +174,10 @@ bool FindKeywordVisitor::hasKeyWord(string name){
 
 
 void FindKeywordVisitor::travelStmt(Stmt* stmt){
+    
+    
+    stmt->dump();
+    return;
 	
 	if(CallExpr* callExpr = dyn_cast<CallExpr>(stmt)){
         
@@ -231,6 +235,8 @@ bool FindKeywordVisitor::VisitFunctionDecl(FunctionDecl* Declaration) {
     return true;*/
     
 	if(Declaration->getBody()){
+        
+        
 
 		travelStmt(Declaration->getBody());	
 	}

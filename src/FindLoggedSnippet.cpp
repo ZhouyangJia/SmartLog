@@ -31,6 +31,11 @@ void FindLoggedVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
     if(!callExpr->getDirectCallee() || !logExpr->getDirectCallee())
         return;
     
+    if(hasRecorded[callExpr] == 0)
+        hasRecorded[callExpr] = 1;
+    else
+        return;
+    
     SourceLocation callLocation = callExpr->getLocStart();
     SourceLocation logLocation = logExpr->getLocStart();
     
@@ -279,6 +284,8 @@ bool FindLoggedVisitor::VisitFunctionDecl (FunctionDecl* Declaration){
     //llvm::errs()<<"Found function "<<Declaration->getQualifiedNameAsString() ;
     //llvm::errs()<<" @ " << FullLocation.printToString(FullLocation.getManager()) <<"\n";
     
+    
+    hasRecorded.clear();
     if(Stmt* function = Declaration->getBody()){
         travelStmt(function, function);
     }

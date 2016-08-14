@@ -40,7 +40,7 @@ StringRef FindPatternVisitor::expr2str(Stmt *s){
 }
 
 
-///record and Pattern call-log pair
+///record call-log pair
 void FindPatternVisitor::recordCallLog(string reason, CallExpr *logExpr){
     
     if(!logExpr)
@@ -79,7 +79,7 @@ void FindPatternVisitor::recordCallLog(string reason, CallExpr *logExpr){
 }
 
 
-///record and Pattern call-log pair
+///record call-log pair
 void FindPatternVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
     
     if(!callExpr || !logExpr)

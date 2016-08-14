@@ -34,8 +34,8 @@ void FindOutputVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
     if(!callExpr->getDirectCallee() || !logExpr->getDirectCallee())
         return;
     
-    if(hasRecorded[logExpr] == 0)
-        hasRecorded[logExpr] = 1;
+    if(hasRecorded[callExpr] == 0)
+        hasRecorded[callExpr] = 1;
     else
         return;
     
@@ -136,7 +136,6 @@ CallExpr* FindOutputVisitor::searchCall(Stmt *stmt){
     return 0;
 }
 
-
 ///search the function body for call-log pairs
 void FindOutputVisitor::travelStmt(Stmt *stmt, Stmt *father){
     
@@ -167,8 +166,18 @@ void FindOutputVisitor::travelStmt(Stmt *stmt, Stmt *father){
                 expr = expr->IgnoreImplicit();
                 expr = expr->IgnoreParens();
                 if(CallExpr *callExpr = dyn_cast<CallExpr>(expr)){
+                    
+                    bool isYoungBrother = false;
                     for(Stmt::child_iterator bro = father->child_begin(); bro != father->child_end(); ++bro){
                         if(Stmt *brother = *bro){
+                            
+                            if(brother == stmt){
+                                isYoungBrother = true;
+                                continue;
+                            }
+                            if(isYoungBrother == false){
+                                continue;
+                            }
                             searchLog(callExpr, brother);
                         }
                     }

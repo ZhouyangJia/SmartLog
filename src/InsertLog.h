@@ -1,13 +1,5 @@
-//
-//  FindLoggedSnippet.h
-//  LLVM
-//
-//  Created by ZhouyangJia on 16/4/13.
-//
-//
-
-#ifndef FindLoggedSnippet_hpp
-#define FindLoggedSnippet_hpp
+#ifndef INSERTLOG_H
+#define INSERTLOG_H
 
 #include <map>
 #include <vector>
@@ -57,58 +49,60 @@ using namespace clang;
 using namespace llvm;
 using namespace llvm::opt;
 
-
-class FindLoggedVisitor : public RecursiveASTVisitor <FindLoggedVisitor> {
+class FuncCondInfo{
 public:
-    explicit FindLoggedVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
+    FuncCondInfo(){
+        string funcName = "";
+        condcnt = 0;
+        condTime = 0;
+        totalTime = 0;
+    };
     
-    bool VisitFunctionDecl (FunctionDecl*);
-    
-    void travelStmt(Stmt*, Stmt*);
-    
-    CallExpr* searchLog(Stmt*);
-    CallExpr* searchCall(Stmt*);
-    
-    void recordCallLog(CallExpr*, CallExpr*);
-    
-    StringRef expr2str(Stmt*);
-    void readLogFunction();
-    
-    ///recode the call-log pairs
-    //code
-    //  ret = foo();
-    //  if(ret)
-    //      log();
-    //\code
-    CallExpr *myCallExpr;   //foo()
-    CallExpr *myLogExpr;    //log()
-    StringRef myReturnName; //ret
+    string funcName;
+    string funcCond[100];
+    string errormsg[100];
+    int condTime;
+    int totalTime;
+    int isChosen[100];
+    int condcnt;
     
     
-    map<CallExpr*, int> hasRecorded;
     
-    CompilerInstance* CI;
-    StringRef InFile;
+    void setFuncName(string);
+    void addCond(string, int, int, string);
     
+    void print();
 };
 
-class FindLoggedConsumer : public ASTConsumer {
+class InsertLogVisitor : public RecursiveASTVisitor <InsertLogVisitor> {
 public:
-    explicit FindLoggedConsumer(CompilerInstance* CI, StringRef InFile) : Visitor(CI, InFile){}
-    virtual void HandleTranslationUnit (clang::ASTContext &Context);
-    
+	explicit InsertLogVisitor(CompilerInstance* CI, StringRef InFile, Rewriter rewriter) : CI(CI), InFile(InFile), rewriter(rewriter){};
+	
+	bool VisitFunctionDecl (FunctionDecl*);
+	
+	void travelStmt(Stmt*, Stmt*);	
+//private:
+	CompilerInstance* CI;
+	StringRef InFile;
+	Rewriter rewriter;
+	
+};
+
+class InsertLogConsumer : public ASTConsumer {
+public:
+	explicit InsertLogConsumer(CompilerInstance* CI, StringRef InFile, Rewriter rewriter) : Visitor(CI, InFile, rewriter){}
+	virtual void HandleTranslationUnit (clang::ASTContext &Context);
+private: 
+	InsertLogVisitor Visitor;
+	StringRef InFile;
+};
+
+
+class InsertLogAction : public ASTFrontendAction {
+public:
+	virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
 private:
-    FindLoggedVisitor Visitor;
-    StringRef InFile;
 };
 
-class FindLoggedAction : public ASTFrontendAction {
-public:
-    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler, StringRef InFile);
-private:
-};
 
-#endif /* FindLoggedSnippet_hpp */
-
-
-
+#endif

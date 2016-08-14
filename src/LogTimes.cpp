@@ -24,7 +24,6 @@ void LogTime::print(){
     outs()<<name<<","<<call_time<<","<<log_time<<","<<log_level<<"\n";
 }
 
-
 ///get the source code of stmt
 string LogTimesVisitor::expr2str(Stmt *s){
     

@@ -29,6 +29,7 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ParentMap.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/TargetInfo.h"
@@ -59,49 +60,132 @@ using namespace llvm::opt;
 
 
 struct FunctionFeat{
+    
+    string funcName;
+    string fileName;
+    bool funcKeyWord;
+    
 	int calledNumber;
-	int fileNumber;
-	
-	string funcName;
-	bool funcKeyWord;
-	
-	string fileName;
-	bool fileKeyWord;
+    int normalNumber;
+    int errorNumber;
 	
 	int lenth;
-	bool flow;
-    
-    bool decl;
-    bool haschar;
-    
-    int logNumber;
-    
-	int label;
-    
-    string source;
+    set<int> callerID;
+    map<int, bool> flowID;
     
 	void print();
 };
 
+struct Node{
+    struct Node* parent;
+    struct Node* childl;
+    struct Node* childr;
+    
+    BinaryOperator* BO;
+    
+    string textl;
+    string textr;
+    
+    bool LNot;
+    bool changeOp;
+    
+};
+
+struct LogBehavior{
+    
+    string callName;
+    string callText;
+    string callLoc;
+    CallExpr* callExpr;
+    string retName;
+    
+    int argIndex;
+    string argType;
+    
+    string ifText;
+    string regularText;
+    string ifLoc;
+    int ifBranch;
+    Stmt* stmt;
+    
+    string logText;
+    string logType;
+    string logLoc;
+    
+    void print();
+    
+    struct Node* root;
+    vector<BinaryOperator*>BOList;
+    
+    CompilerInstance* CI;
+    
+    void regular(CompilerInstance*);
+    void nodeCollect(Stmt*);
+    void nodeRegular(Node*);
+    string getNodeText(Node*);
+    void nodeFree(Node*);
+    
+    bool getAtMost2BO(Stmt*);
+    Expr* expr;
+    BinaryOperator* bo1;
+    BinaryOperator* bo2;
+    string getExprText(bool);
+    string getLeafText(Expr*);
+    string getExprRegular(string,string,BinaryOperator::Opcode);
+    
+    string getText(Stmt*);
+};
 
 class FindLoggingVisitor : public RecursiveASTVisitor <FindLoggingVisitor> {
+    
 public:
 	explicit FindLoggingVisitor(CompilerInstance* CI, StringRef InFile) : CI(CI), InFile(InFile){};
-	
-	bool VisitFunctionDecl (FunctionDecl*);
-	
-	void travelStmt(Stmt*);	
-	
-    string expr2str(Stmt*);
-	string getfile(string);
-    bool hasKeyWord(string);
-    string* spiltWord(string);
+    bool VisitFunctionDecl (FunctionDecl*);
+	void travelStmt(Stmt*,Stmt*);
+    
+    
+    bool hasKeyword(string);
+    bool spiltWord(string);
+    bool equalKeyword(string);
+    
+    bool searchKeyword(Stmt*);
+    bool hasErrorKeyword(string);
+    bool hasExitKeyword(string);
+    bool hasLimitationKeyword(string);
+    bool hasPrintKeyword(string);
+    bool hasNonCorrectKeyword(string);
+    
 
     bool hasChar(QualType);
+    string expr2str(Stmt*);
+    StringRef getStemName(StringRef);
+    
+    bool isLoggingStatement(CallExpr*, Stmt*);
+    
+    void extractLoggingSnippet(FunctionDecl*);
+    bool hasReturnStmt(Stmt*);
+    bool hasLogStmt(Stmt*);
+    bool hasCallExpr(Stmt*);
+    Stmt* getNextNode(Stmt*, Stmt*);
 	
 private:
 	CompilerInstance* CI;
-	StringRef InFile;
+    StringRef InFile;
+    int callerID;
+    
+    // isInIfCond
+    bool isInIfCond;
+    
+    // Call info and branch info
+    vector<CallExpr*> callList;
+    map<CallExpr*, bool> logListMap;
+    vector<IfStmt*> ifList;
+    vector<SwitchStmt*> switchList;
+    
+    // Remote log and Local log
+    ReturnStmt* myReturnStmt;
+    CallExpr* myLogStmt;
+    
 };
 
 class FindLoggingConsumer : public ASTConsumer {
