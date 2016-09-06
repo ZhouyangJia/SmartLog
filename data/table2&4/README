@@ -1,0 +1,30 @@
+Run:
+#python accuracy.py
+
+
+Input file: errlog.pattern.input
+	The logged snippets recognized by Errlog
+	Format: function name @ function call location # log name @ log location
+ 
+Input file: errlog.recall.input
+	Sampled log location, 100 per project, used to evaluate recall of Errlog
+	Format: log location
+
+Input file: errlog.precision.input
+	Sampled log statement, used to evaluate precision of Errlog
+	Format: function name / function call location / tag / log location
+
+Input file: precision.input
+	Sampled log tag, used to evaluate precision of LogAdvisor and Semantic
+	Format: function name / tag
+
+Input file: recall.syntax.input
+	Sample log context
+	Format: function name / log syntax context
+
+Input file: recall.semantic.input
+	Sample log context
+	Format: function name / log semantic context
+
+
+

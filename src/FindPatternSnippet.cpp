@@ -71,7 +71,9 @@ void FindPatternVisitor::recordCallLog(string reason, CallExpr *logExpr){
         fputs("#", out);
         fputs(logExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), out);
         fputs("@", out);
-        fputs(logLocation.printToString(CI->getSourceManager()).c_str(), out);
+        string logloc = logLocation.printToString(CI->getSourceManager());
+        logloc = logloc.substr(0, logloc.find(" "));
+        fputs(logloc.c_str(), out);
         fputs("\n", out);
         
         totalPatternSnippet++;
@@ -110,11 +112,15 @@ void FindPatternVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
         
         fputs(callExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), out);
         fputs("@", out);
-        fputs(callLocation.printToString(CI->getSourceManager()).c_str(), out);
+        string callloc = callLocation.printToString(CI->getSourceManager());
+        callloc = callloc.substr(0, callloc.find(" "));
+        fputs(callloc.c_str(), out);
         fputs("#", out);
         fputs(logExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), out);
         fputs("@", out);
-        fputs(logLocation.printToString(CI->getSourceManager()).c_str(), out);
+        string logloc = logLocation.printToString(CI->getSourceManager());
+        logloc = logloc.substr(0, logloc.find(" "));
+        fputs(logloc.c_str(), out);
         fputs("\n", out);
         
         totalPatternSnippet++;
@@ -209,8 +215,16 @@ bool FindPatternVisitor::isLibFunction(CallExpr* callExpr){
     if(FunctionDecl* functionDeal = callExpr->getDirectCallee()){
         string fileName = CI->getASTContext().getFullLoc(functionDeal->getLocStart()).printToString(CI->getSourceManager());
         fileName = fileName.substr(0, fileName.find_first_of(':'));
-        if(fileName.find("/usr/include") != string::npos)
-            return true;
+        if(fileName.find("/usr/include") != string::npos ){
+            string stem = fileName.substr(13);  // "/usr/include/" 13 char
+            if(stem.find("/") == string::npos ){
+                string callname = functionDeal->getNameAsString();
+                if(callname.compare("strcmp") && callname.compare("strncmp") && callname.compare("strlen")){
+                    //errs()<<callname<<"@"<<fileName<<"\n";
+                    return true;
+                }
+            }
+        }
     }
     
     return false;

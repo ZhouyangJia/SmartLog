@@ -73,6 +73,7 @@ public:
     
     StringRef expr2str(Stmt*);
     void readLogFunction();
+    bool hasKeyWord(string);
     
     ///recode the call-log pairs
     //code

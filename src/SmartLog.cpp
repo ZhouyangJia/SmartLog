@@ -33,6 +33,7 @@ FILE* fLogStmt;
 FILE* fLogBehavior;
 FILE* fNorBehavior;
 FILE* fUnloggedFunc;
+FILE* fFuncRuleModel;
 // Other
 FILE* in;
 FILE* out;
@@ -66,6 +67,11 @@ map<string, int>funcNameMap;
 map<string, int>funcCheckMap;
 map<string, int>funcLogMap;
 map<string, int>funcApprMap;
+
+// Function rule mining
+map<string, int> myLoggedTime;
+map<string, int> myCalledTime;
+
 
 //count results
 //int totalLoggingFunction;
@@ -703,20 +709,18 @@ int main(int argc, const char **argv) {
     
     if(FindLoggedSnippet){
         
-        llvm::errs()<<"Find logged snippets:\n";
+        //llvm::errs()<<"Find function rule model instances:\n";
         
         bool diag = true;
         fileNum = 0;
         lastName = "";
         totalLoggedSnippet = 0;
-        
-        enum logging_function loggingMethod;
-        loggingMethod = LOGGING_FUNCTION;
-        readLoggingFunction(loggingMethod);
+        myLoggedTime.clear();
+        myCalledTime.clear();
         
         FrontendFactory = newFrontendActionFactory<FindLoggedAction>();
         
-        out = fopen("logged_snippet_ast.out","w");
+        fFuncRuleModel = fopen("function_rule_model.out","w");
         for(unsigned i = 0; i < source.size(); i++){
             vector<string> mysource;
             mysource.push_back(source[i]);
@@ -727,9 +731,23 @@ int main(int argc, const char **argv) {
             Tool.run(FrontendFactory.get());
         }
         
-        llvm::errs()<<"Total logged snippets: "<<totalLoggedSnippet<<"\n";
+        map<string,int>::iterator it;
+        for(it = myCalledTime.begin(); it != myCalledTime.end(); ++it){
+            
+            string name = it->first;
+            if(name == "")
+                continue;
+            int call = it->second;
+            int log = myLoggedTime[name];
+            char arg[100];
+            sprintf(arg, "%s,%d,%d\n", name.c_str(), call, log);
+            fputs(arg,fFuncRuleModel);
+            
+        }
         
-        fclose(out);
+        //llvm::errs()<<"Total function rule model instances: "<<totalLoggedSnippet<<"\n";
+        
+        fclose(fFuncRuleModel);
     }
     
     if(InsertLog){

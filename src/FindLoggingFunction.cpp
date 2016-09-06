@@ -639,6 +639,7 @@ void LogBehavior::regular(CompilerInstance* ci){
         }
         //errs()<<text<<"\n";
     }
+    
     regularText = text;
 }
 
@@ -653,6 +654,22 @@ void LogBehavior::print(){
     errs()<<"---Check Text: "<<"("<<(ifBranch?"-":"+")<<")"<<ifText<<"@"<<ifLoc<<"\n";
     errs()<<"---Log Text: "<<logText<<"@"<<logLoc<<"\n";
     
+}
+
+string getStrArg(Stmt * stmt){
+    
+    
+    if(StringLiteral* stringLiteral = dyn_cast<StringLiteral>(stmt)){
+        return stringLiteral->getBytes();
+    }
+    
+    string ret = "";
+    for (Stmt::child_iterator it = stmt->child_begin(); it != stmt->child_end(); ++it){
+        if(Stmt *child = *it){
+            ret.append(getStrArg(child));
+        }
+    }
+    return ret;
 }
 
 /// Extract logging behavior
@@ -749,12 +766,19 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                 
                 myLogStmt = nullptr;
                 myReturnStmt = nullptr;
+                myOutputStmt = nullptr;
                 
                 if(hasLogStmt(ifList[j]->getThen())){
                     flag = 2;
                 }
                 else if(hasLogStmt(ifList[j]->getElse())){
                     flag = 1;
+                }
+                else if(hasOutputStmt(ifList[j]->getThen())){
+                    flag = 6;
+                }
+                else if(hasOutputStmt(ifList[j]->getElse())){
+                    flag = 5;
                 }
                 else if(hasReturnStmt(ifList[j]->getThen())){
                     flag = 4;
@@ -763,8 +787,9 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                     flag = 3;
                 }
                 
+                
                 // Unknown error
-                if(flag && myLogStmt == nullptr && myReturnStmt == nullptr){
+                if(flag && myLogStmt == nullptr && myReturnStmt == nullptr && myOutputStmt == nullptr){
                     continue;
                 }
                 
@@ -779,14 +804,35 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                     logstart = CI->getASTContext().getFullLoc(myReturnStmt->getLocStart());
                     logend = CI->getASTContext().getFullLoc(myReturnStmt->getLocEnd());
                 }
+                else if(flag == 5 || flag == 6){
+                    logstart = CI->getASTContext().getFullLoc(myOutputStmt->getLocStart());
+                    logend = CI->getASTContext().getFullLoc(myOutputStmt->getLocEnd());
+                }
                 if(logstart.isValid() && logend.isValid()){
                     SourceRange sr(logstart.getExpansionLoc(), logend.getExpansionLoc());
                     logText =Lexer::getSourceText(CharSourceRange::getTokenRange(sr), CI->getSourceManager(), LangOptions(), 0);
-                }
-                string::size_type pos = 0;
-                while ( (pos = logText.find('\n', pos)) != string::npos ) {
-                    logText.replace( pos, 1, " ");
-                    pos++;
+                    
+                    /*string logText2 = "";
+                    if(flag == 1 || flag == 2){
+                        SourceLocation sl = myLogStmt->getSourceRange().getBegin();
+                        if (sl.isMacroID())
+                            logText2 = Lexer::getImmediateMacroName(sl, CI->getSourceManager(), LangOptions());
+                    }
+                    SourceLocation sl = Lexer::findLocationAfterToken(logstart.getExpansionLoc(), tok::semi, CI->getSourceManager(),LangOptions(), 0);
+                    SourceRange sr2(logstart.getExpansionLoc(), sl);
+                    string logText2 =Lexer::getSourceText(CharSourceRange::getTokenRange(sr), CI->getSourceManager(), LangOptions(), 0);
+                     errs()<<fsl.printToString(CI->getSourceManager())<<"\n";*/
+                    
+                    if(logText.find('(') == string::npos){
+                        if(flag == 1 || flag == 2){
+                            logText.append(getStrArg(myLogStmt));
+                        }
+                        else if(flag == 5 || flag == 6){
+                            logText.append(getStrArg(myOutputStmt));
+                        }
+                    }
+                    //errs()<<logText<<"@";
+                    //errs()<<logstart.printToString(CI->getSourceManager())<<"#"<<logend.printToString(CI->getSourceManager())<<"\n";
                 }
                 
                 // In SA case, the call should be after log
@@ -802,11 +848,6 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                     SourceRange sr(ifconstart.getExpansionLoc(), ifconend.getExpansionLoc());
                     ifText =Lexer::getSourceText(CharSourceRange::getTokenRange(sr), CI->getSourceManager(), LangOptions(), 0);
                 }
-                pos = 0;
-                while ( (pos = ifText.find('\n', pos)) != string::npos ) {
-                    ifText.replace( pos, 1, " ");
-                    pos++;
-                }
                 
                 // Get the code text of callexpr
                 string callText = "";
@@ -815,11 +856,6 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                 if(callstart.isValid() && callend.isValid()){
                     SourceRange sr(callstart.getExpansionLoc(), callend.getExpansionLoc());
                     callText =Lexer::getSourceText(CharSourceRange::getTokenRange(sr), CI->getSourceManager(), LangOptions(), 0);
-                }
-                pos = 0;
-                while ( (pos = callText.find('\n', pos)) != string::npos ) {
-                    callText.replace( pos, 1, " ");
-                    pos++;
                 }
                 
                 // Ignore the case when check and log at the same line, it in general is FP
@@ -835,6 +871,7 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                 
                 myLog.callName = calleeName;
                 myLog.callText = callText;
+                myLog.retName = mapFuncRet[callList[i]];
                 myLog.callLoc = callstart.printToString(CI->getSourceManager());
                 myLog.callLoc = myLog.callLoc.substr(0, myLog.callLoc.find(" "));
                 myLog.callExpr = callList[i];
@@ -872,8 +909,14 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                     myLog.logLoc = logstart.printToString(CI->getSourceManager());
                     myLog.logLoc = myLog.logLoc.substr(0, myLog.logLoc.find(" "));
                 }
+                else if(flag == 5 || flag == 6){
+                    myLog.logType = "OS";
+                    myLog.logLoc = logstart.printToString(CI->getSourceManager());
+                    myLog.logLoc = myLog.logLoc.substr(0, myLog.logLoc.find(" "));
+                }
                 else
                     myLog.logType = "NL";
+                
                 
                 //myLog.print();
                 myLog.regular(CI);
@@ -884,9 +927,11 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                 sprintf(arg, "%d", myLog.argIndex);
                 string branch;
                 if(myLog.ifBranch)
-                    branch = "+";
-                else
                     branch = "-";
+                else
+                    branch = "+";
+                
+                /*
                 // Function Call
                 behavior.append(myLog.callText).append("@").append(myLog.callLoc).append("#");
                 // Reason
@@ -895,6 +940,32 @@ void FindLoggingVisitor::extractLoggingSnippet(FunctionDecl* Declaration){
                 behavior.append(myLog.ifText).append("(").append(branch).append(")@").append(myLog.ifLoc).append("#");
                 // Log
                 behavior.append(myLog.logText).append("(").append(myLog.logType).append(")@").append(myLog.logLoc).append("\n");
+                */
+                if(myLog.retName.length() != 0)
+                    myLog.retName.append("=");
+                
+                behavior.append(myLog.callName).append("`").append(myLog.retName).append(myLog.callText).append("`").append(myLog.callLoc).append("`");
+                behavior.append(arg).append("`").append(myLog.argType).append("`");
+                behavior.append(myLog.ifText).append("(").append(branch).append(")").append("`").append(myLog.regularText).append("`").append(myLog.ifLoc).append("`");
+                behavior.append(myLog.logText).append("`").append(myLog.logType).append("`").append(myLog.logLoc);
+            
+                string::size_type pos = 0;
+                while ( (pos = behavior.find('\n', pos)) != string::npos ) {
+                    behavior.replace( pos, 1, "");
+                    pos++;
+                }
+                pos = 0;
+                while ( (pos = behavior.find(' ', pos)) != string::npos ) {
+                    behavior.replace( pos, 1, "");
+                    pos++;
+                }
+                pos = 0;
+                while ( (pos = behavior.find('\t', pos)) != string::npos ) {
+                    behavior.replace( pos, 1, "");
+                    pos++;
+                }
+                
+                behavior.append("\n");
                 
                 fputs(behavior.c_str(), fLogBehavior);
                 
@@ -979,7 +1050,7 @@ bool FindLoggingVisitor::hasChar(QualType qt){
     return 0;
 }
 
-/// Check whether a given string EQUALs to a error/print/exit keyword.
+/// Check whether a given string EQUALs to an error/print/exit keyword.
 /// Input: a string
 /// Output: yes or no
 bool FindLoggingVisitor::equalKeyword(string name){
@@ -1005,6 +1076,29 @@ bool FindLoggingVisitor::equalKeyword(string name){
         if(word[i].length() == 0)
             break;
         if(!name.compare(word[i]))
+            return true;
+    }
+    
+    return false;
+}
+
+
+/// Check whether a given string CONTAINs an output keyword.
+/// Input: a string
+/// Output: yes or no
+bool FindLoggingVisitor::containKeyword(string name){
+    
+    string word[100] = {
+        
+        "err","warn","alert","assert","fail","critical","crit","emergency","emerg",
+        "output","out","put","print","write","log","message","msg","record",
+        "report","dump","puts"
+    };
+    
+    for(int i = 0; i < 100; i++){
+        if(word[i].length() == 0)
+            break;
+        if(name.find(word[i]) < name.length())
             return true;
     }
     
@@ -1322,6 +1416,39 @@ bool FindLoggingVisitor::hasLogStmt(Stmt* stmt){
     for (Stmt::child_iterator it = stmt->child_begin(); it != stmt->child_end(); ++it){
         if(Stmt *child = *it)
             if(hasLogStmt(child))
+                return true;
+    }
+    return false;
+}
+
+/// Check whether an ifstmt contains a output statement
+/// Input: if statemet
+/// Output: yes or no
+bool FindLoggingVisitor::hasOutputStmt(Stmt* stmt){
+    
+    if(!stmt)
+        return false;
+    
+    // Skip for/while statement
+    if(dyn_cast<ForStmt>(stmt) || dyn_cast<WhileStmt>(stmt)){
+        return false;
+    }
+    
+    // Check log statement
+    if(CallExpr* callExpr = dyn_cast<CallExpr>(stmt)){
+        // Confirm a output
+        if(callExpr->getDirectCallee()){
+            if(containKeyword(callExpr->getDirectCallee()->getNameAsString())){
+                myOutputStmt = callExpr;
+                return true;
+            }
+        }
+    }
+    
+    // Travel the statement, recursively.
+    for (Stmt::child_iterator it = stmt->child_begin(); it != stmt->child_end(); ++it){
+        if(Stmt *child = *it)
+            if(hasOutputStmt(child))
                 return true;
     }
     return false;

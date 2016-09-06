@@ -147,6 +147,7 @@ public:
     bool hasKeyword(string);
     bool spiltWord(string);
     bool equalKeyword(string);
+    bool containKeyword(string);
     
     bool searchKeyword(Stmt*);
     bool hasErrorKeyword(string);
@@ -165,6 +166,7 @@ public:
     void extractLoggingSnippet(FunctionDecl*);
     bool hasReturnStmt(Stmt*);
     bool hasLogStmt(Stmt*);
+    bool hasOutputStmt(Stmt*);
     bool hasCallExpr(Stmt*);
     Stmt* getNextNode(Stmt*, Stmt*);
 	
@@ -185,6 +187,7 @@ private:
     // Remote log and Local log
     ReturnStmt* myReturnStmt;
     CallExpr* myLogStmt;
+    CallExpr* myOutputStmt;
     
 };
 

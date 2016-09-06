@@ -14,16 +14,20 @@ extern string lastName;
 extern int fileTotalNum;
 extern int fileNum;
 
-extern string logNames[MAX_LOG_FUNC];
-extern int logNamesCnt;
 
 extern int totalLoggedSnippet;
 
-extern FILE* out;
+
+extern map<string, int> myLoggedTime;
+extern map<string, int> myCalledTime;
+
+extern FILE* fFuncRuleModel;
 
 
 ///record and output call-log pair
 void FindLoggedVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
+    
+    return;
     
     if(!callExpr || !logExpr)
         return;
@@ -46,14 +50,14 @@ void FindLoggedVisitor::recordCallLog(CallExpr *callExpr, CallExpr *logExpr){
 //        llvm::outs()<<logExpr->getDirectCallee()->getQualifiedNameAsString()<<"@"<<logLocation.printToString(CI->getSourceManager());
 //        llvm::outs()<<"\n";
         
-        fputs(callExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), out);
-        fputs("@", out);
-        fputs(callLocation.printToString(CI->getSourceManager()).c_str(), out);
-        fputs("#", out);
-        fputs(logExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), out);
-        fputs("@", out);
-        fputs(logLocation.printToString(CI->getSourceManager()).c_str(), out);
-        fputs("\n", out);
+        fputs(callExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), fFuncRuleModel);
+        fputs("@", fFuncRuleModel);
+        fputs(callLocation.printToString(CI->getSourceManager()).c_str(), fFuncRuleModel);
+        fputs("#", fFuncRuleModel);
+        fputs(logExpr->getDirectCallee()->getQualifiedNameAsString().c_str(), fFuncRuleModel);
+        fputs("@", fFuncRuleModel);
+        fputs(logLocation.printToString(CI->getSourceManager()).c_str(), fFuncRuleModel);
+        fputs("\n", fFuncRuleModel);
         
         totalLoggedSnippet++;
     }
@@ -78,6 +82,79 @@ StringRef FindLoggedVisitor::expr2str(Stmt *s){
 }
 
 
+bool FindLoggedVisitor::hasKeyWord(string name){
+    
+    transform(name.begin(), name.end(), name.begin(), ::tolower);  //::toupper
+    
+    //string* spilted;
+    //spilted = spiltWord(name);
+    
+    string word[30] = {
+        "log",
+        "error",
+        "err",
+        "die",
+        "fail",
+        
+        "hint",
+        "put",
+        "assert",
+        "trace",
+        "print",
+        
+        "write",
+        "report",
+        "record",
+        "dump",
+        "msg",
+        
+        "message",
+        "out",
+        "warn",
+        "debug"
+        "emerg"
+        
+        "alert"
+        "crit"
+    };
+    
+    /*string nword[30] = {
+     "binlog",
+     "logic",
+     "parse",
+     "input",
+     "sprint",
+     "snprint",
+     "pullout",
+     "compute",
+     "timeout",
+     "routine",
+     "__errno_location",
+     "wcserror",
+     "strerror",
+     "putc",
+     "layout"
+     };*/
+    
+    /*for(int i = 0; i < 30; i++){
+     if(nword[i].length() == 0)
+     break;
+     if(name.find(nword[i]) < name.length() && (name.find_last_of(':') == string::npos || name.find(nword[i]) > name.find_last_of(':')))
+     return false;
+     }*/
+    
+    for(int i = 0; i < 30; i++){
+        if(word[i].length() == 0)
+            break;
+        if(name.find(word[i]) < name.length() && (name.find_last_of(':') == string::npos || name.find(word[i]) > name.find_last_of(':')))
+            return true;
+    }
+    
+    return false;
+}
+
+
+
 ///search log site in the subtree of stmt
 CallExpr* FindLoggedVisitor::searchLog(Stmt *stmt){
     
@@ -88,10 +165,8 @@ CallExpr* FindLoggedVisitor::searchLog(Stmt *stmt){
         if(FunctionDecl *functionDecl = callExpr->getDirectCallee()){
             StringRef callName = functionDecl->getQualifiedNameAsString();
             
-            for(int i = 0; i < logNamesCnt-1; i++){
-                if(logNames[i].find(callName) != string::npos){
-                    return callExpr;
-                }
+            if(hasKeyWord(callName)){
+                return callExpr;
             }
         }
     }
@@ -137,6 +212,13 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
     
     if(!stmt || !father)
         return;
+    
+    if(CallExpr* callExpr = dyn_cast<CallExpr>(stmt)){
+        StringRef callName = "";
+        if(FunctionDecl *functionDecl = callExpr->getDirectCallee())
+            callName = functionDecl->getQualifiedNameAsString();
+        myCalledTime[callName]++;
+    }
 
     ///deal with first log pattern
     //code
@@ -150,16 +232,23 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
             
             ///search for call in condexpr
             if((myCallExpr = searchCall(stmt))){
+                StringRef callName = "";
+                if(FunctionDecl *functionDecl = myCallExpr->getDirectCallee())
+                    callName = functionDecl->getQualifiedNameAsString();
+                
             
                 ///search for log in both 'then body' and 'else body'
-                if((myLogExpr = searchLog(ifStmt->getThen())))
+                if((myLogExpr = searchLog(ifStmt->getThen()))){
                     recordCallLog(myCallExpr, myLogExpr);
-                
-                else if((myLogExpr = searchLog(ifStmt->getElse())))
+                    myLoggedTime[callName]++;
+                }
+                else if((myLogExpr = searchLog(ifStmt->getElse()))){
                     recordCallLog(myCallExpr, myLogExpr);
+                    myLoggedTime[callName]++;
+                }
 
                 ///do not search inside the condexpr
-                return;
+                //return;
             }
         }
     }
@@ -177,13 +266,17 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
             
             ///search for call in condexpr
             if((myCallExpr = searchCall(stmt))){
+                StringRef callName = "";
+                if(FunctionDecl *functionDecl = myCallExpr->getDirectCallee())
+                    callName = functionDecl->getQualifiedNameAsString();
                 
                 ///search for log in each 'switch body'
-                if((myLogExpr = searchLog(switchStmt->getBody())))
+                if((myLogExpr = searchLog(switchStmt->getBody()))){
                     recordCallLog(myCallExpr, myLogExpr);
-                
+                    myLoggedTime[callName]++;
+                }
                 ///do not search inside the condexpr
-                return;
+                //return;
             }
         }
     }
@@ -209,6 +302,9 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
                         return;
                     
                     myCallExpr = callExpr;
+                    StringRef callName = "";
+                    if(FunctionDecl *functionDecl = myCallExpr->getDirectCallee())
+                        callName = functionDecl->getQualifiedNameAsString();
                     
                     ///search for brothers of stmt
                     ///young_brother means the branch after stmt
@@ -236,12 +332,13 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
                                     
                                     ///search for log in both 'then body' and 'else body'
                                     if((myLogExpr = searchLog(ifStmt->getThen()))){
-                                        
                                         recordCallLog(myCallExpr, myLogExpr);
+                                        myLoggedTime[callName]++;
                                         break;
                                     }
                                     else if((myLogExpr = searchLog(ifStmt->getElse()))){
                                         recordCallLog(myCallExpr, myLogExpr);
+                                        myLoggedTime[callName]++;
                                         break;
                                     }
                                 }
@@ -249,7 +346,7 @@ void FindLoggedVisitor::travelStmt(Stmt *stmt, Stmt *father){
                             
                         }
                     }//end for
-                    return;
+                    //return;
                 }
             }
         }

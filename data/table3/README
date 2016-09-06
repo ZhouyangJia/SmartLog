@@ -1,0 +1,14 @@
+Run:
+#python limitation.py *SA *RV *PA
+
+
+Input file: errlog.pattern.input
+	The logged snippets recognized by Errlog
+	Format: function name @ function call location # log function name @ log location
+ 
+Input file: http_RV
+	The logs of Return Value in Httpd
+	Format: log location
+
+Other input files are similar with http_RV
+

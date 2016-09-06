@@ -1,0 +1,12 @@
+File: log usage
+Format: log location \ usage \ pattern
+
+usage:
+	not_output for Not Log
+	result for Result
+	log for Error Log
+	audit for Audit
+
+pattern:
+	free_pattern for statements beyond Errlog's patterns
+	fix_pattern for statements in Errlog's patterns
