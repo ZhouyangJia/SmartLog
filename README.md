@@ -29,10 +29,15 @@ bear make
 ```sh
 ../../script/extract_command.pl compile_commands.json
 ```
+- Generate call dependence before running SmartLog (Compiler [CallDependence](https://github.com/ZhouyangJia/CallDependence) tool first).
+```sh
+../../script/call_dependence.sh
+```
 - Generate *logging_statement.out*, *logging_behavior.out*, *normalizes_behavior.out* and *logging_rules.out*.
 ```sh
 cat compiled_files.def | xargs clang-smartlog -find-logging-behavior > logging_rules.out
 ```
+
 **logging_statement.out**. The logging statements, including function name and call location.
 
 **logging_behavior.out**. The logging behavior, including error-prone function name, function call expression, function call location, argument index, log type (SA for sensitive argement, RV for return value and PA for pointer argument), check condition, check location, logging statement, log approach (LL for local log, RL for remote log and NL for no log), log location.
