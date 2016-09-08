@@ -11,8 +11,8 @@ A Semantic-Aware Log Automation Tool for Failure Diagnosis.
 
 ##### Compile
 - Download the source code.
-- Make new fold *clang-smartlog* in Clang tools directory, e.g., /home/guest/llvm-3.8/tools/clang/tools/clang-smartlog.
-- Extract source code to above new fold.
+- Create new folder *clang-smartlog* in Clang tools directory, e.g., /home/guest/llvm-3.8/tools/clang/tools/clang-smartlog.
+- Extract source code to above new folder.
 - Add *add_clang_subdirectory(clang-smartlog)* in CMakeList.txt in Clang tools directory.
 - Compile Clang, SmartLog is dependent on Python library, maybe you can use -I/usr/include/python2.7 and -lpython2.7.
 
