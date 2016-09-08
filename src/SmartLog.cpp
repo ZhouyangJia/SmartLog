@@ -125,19 +125,19 @@ int totalLogNum;
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 
 static cl::extrahelp MoreHelp(
-	"\tFor example, to run clang-smartlog on all files in a subtree of the\n"
-	"\tsource tree, use:\n"
-	"\n"
-	"\t  find path/in/subtree -name '*.cpp'|xargs clang-smartlog\n"
-	"\n"
-	"\tor using a specific build path:\n"
-	"\n"
-	"\t  find path/in/subtree -name '*.cpp'|xargs clang-smartlog -p build/path\n"
-	"\n"
-	"\tNote, that path/in/subtree and current directory should follow the\n"
-	"\trules described above.\n"
-	"\n"
-);
+                              "\tFor example, to run clang-smartlog on all files in a subtree of the\n"
+                              "\tsource tree, use:\n"
+                              "\n"
+                              "\t  find path/in/subtree -name '*.cpp'|xargs clang-smartlog\n"
+                              "\n"
+                              "\tor using a specific build path:\n"
+                              "\n"
+                              "\t  find path/in/subtree -name '*.cpp'|xargs clang-smartlog -p build/path\n"
+                              "\n"
+                              "\tNote, that path/in/subtree and current directory should follow the\n"
+                              "\trules described above.\n"
+                              "\n"
+                              );
 
 static cl::OptionCategory ClangMytoolCategory("clang-smartlog options");
 
@@ -148,16 +148,16 @@ static cl::opt<bool> FindKeywordFunction("find-keyword-function",
                                          cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> FindLoggingBehavior("find-logging-behavior",
-                                     cl::desc("Find logging behavior."),
-                                     cl::cat(ClangMytoolCategory));
+                                         cl::desc("Find logging behavior."),
+                                         cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> FindOutputSnippet("find-output-snippet",
                                        cl::desc("Find output snippets."),
                                        cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> FindPatternSnippet("find-pattern-snippet",
-                                       cl::desc("Find pattern snippets."),
-                                       cl::cat(ClangMytoolCategory));
+                                        cl::desc("Find pattern snippets."),
+                                        cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> FindLoggedSnippet("find-logged-snippet",
                                        cl::desc("Find logged snippets."),
@@ -165,16 +165,16 @@ static cl::opt<bool> FindLoggedSnippet("find-logged-snippet",
 
 
 static cl::opt<bool> InsertLog("insert-log-statement",
-                                       cl::desc("Insert log statement."),
-                                       cl::cat(ClangMytoolCategory));
+                               cl::desc("Insert log statement."),
+                               cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> LogTimes("log-times",
                               cl::desc("Calculate log times of each function."),
                               cl::cat(ClangMytoolCategory));
 
 static cl::opt<bool> LogScore("log-score",
-                             cl::desc("Calculate log score."),
-                             cl::cat(ClangMytoolCategory));
+                              cl::desc("Calculate log score."),
+                              cl::cat(ClangMytoolCategory));
 
 /// Get the importance level of logging function
 /// Input: function name
@@ -357,7 +357,7 @@ void readCallDep(){
             int arg = atoi(args.c_str());
             myCallDepMap[key] = arg + 1;
             //errs()<<key<<" "<<arg<<" "<<myCallDepMap[key]<<"\n";
-        
+            
         }
         fclose(fCallDep);
     }
@@ -397,9 +397,9 @@ void readUnloggedFunc(){
 
 /// Program entrance
 int main(int argc, const char **argv) {
-	
-	CommonOptionsParser OptionsParser(argc, argv, ClangMytoolCategory);
-	vector<string> source = OptionsParser.getSourcePathList();
+    
+    CommonOptionsParser OptionsParser(argc, argv, ClangMytoolCategory);
+    vector<string> source = OptionsParser.getSourcePathList();
     fileTotalNum = source.size();
     
     std::unique_ptr<FrontendActionFactory> FrontendFactory;
@@ -429,8 +429,8 @@ int main(int argc, const char **argv) {
             printf("can't find function [segment]");
             return 0;
         }
-            
-
+        
+        
         // Init shared variables
         bool diag = true;
         fileNum = 0;
@@ -527,7 +527,7 @@ int main(int argc, const char **argv) {
         }
         map<string,int>::iterator it;
         for(it = funcCheckMap.begin(); it != funcCheckMap.end(); ++it){
-   
+            
             string check = it->first;
             string name = check.substr(0, check.find_first_of('#'));
             
@@ -577,7 +577,7 @@ int main(int argc, const char **argv) {
             outs()<<checkCntLL<<";"<<suppLL<<";"<<confLL<<";"<<meanLL<<";"<<corrLL<<";";
             outs()<<checkCntRL<<";"<<suppRL<<";"<<confRL<<";"<<meanRL<<";"<<corrRL<<";";
             outs()<<checkCntNL<<";"<<suppNL<<";"<<confNL<<";"<<meanNL<<";"<<corrNL<<";";
-        
+            
             // Ignore "\n"
             string::size_type pos = 0;
             while ( (pos = check.find('\n', pos)) != string::npos ) {
@@ -634,8 +634,8 @@ int main(int argc, const char **argv) {
         
         
         /*FrontendFactory = newFrontendActionFactory<FindKeywordAction>();
-        ClangTool Tool(OptionsParser.getCompilations(), source);
-        Tool.run(FrontendFactory.get());*/
+         ClangTool Tool(OptionsParser.getCompilations(), source);
+         Tool.run(FrontendFactory.get());*/
         
         
         llvm::errs()<<"Total keyword functions: "<<totalKeywordFunction<<"\n";
@@ -817,13 +817,13 @@ int main(int argc, const char **argv) {
             myLogTime[i].print();
         }
         //outs()<<"Total function: "<<myLogTimeCnt<<"\n";
-
+        
         fclose(out);
     }
     
     if(LogScore){
-
+        
     }
-	
-	return 0;
+    
+    return 0;
 }

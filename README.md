@@ -1,33 +1,41 @@
 # clang-smartlog
+A Semantic-Aware Log Automation Tool for Failure Diagnosis
 
-Please put the whole script(smartlog-script) in the top level of source code direction!
+### Introduction
+*LogGrad* is a light weight log-quality assessment tool, which is based on Clang.
+Given a set of projects, *LogGrad* can automatically rank them by log quality.
+The basic idea of ranking is that to what extent the given project misses logs.
+The missing logs are classified into 3 types, including project-specific logs, intra-domain important logs and inter-domain important logs.
 
-Compile the source code AND generate compile_commands.json file:
-$bear make
-or for a cmake project, use:
-$cmake /path/to/source/tree -CMAKE_EXPORT_COMPILE_COMMANDS=on
-	
-Then, do:
-$cd smartlog-script
+### Usage
 
-Before running, you should make sure two paths and change it in smartlog.sh
-$LLVMLIB=$HOME/llvm-3.4/Release+Asserts/lib
-$CLANGTOOL=$HOME/llvm-3.4/Release+Asserts/bin
+##### Compile
+- Download the source code.
+- Make new fold *clang-loggrad* in Clang tools directory, e.g., /home/guest/llvm-3.8/tools/clang/tools/clang-loggrad.
+- Extract source code to above new fold.
+- Add *add_clang_subdirectory(clang-loggrad)* in CMakeList.txt in Clang tools directory.
+- Compile Clang.
 
-first, you shold do:
-$chmod 777 ./smartlog.sh ./extract_command.pl
-
-you can get the help by:
-$./smartlog.sh -h
-
-run quickly by:
-$./smartlog.sh -all 2> logfile
-
-patch the additional logs by:
-$./smartlog.sh -patch
-
-recover the patched logs by:
-$./smartlog.sh -recover
-
-if you want to add logging functions manually, please write them into logging_function.in
-
+##### Analyze log information
+- Generate *compile_commands.json*. More infomation about [compile_commands.json](http://clang.llvm.org/docs/JSONCompilationDatabase.html).
+```sh
+./configure
+bear make
+```
+- Generate *compiled_files.def*, This file has all names of compiled source files.
+```sh
+extract_command.pl compile_commands.json
+```
+- Generate *function_rule_model.out*. Each line includes a 3-tuple, namely function name, called time and logged time.
+```sh
+cat compiled_files.def | xargs clang-loggrad -log-grade
+```
+- Remane the output file. Other output files are in script/results.
+```sh
+mv function_rule_model.out bftpd.out
+```
+##### Assessment
+Each output file represents one project followed by a domain name.
+```sh
+python loggrad.py results/httpd.out httpd results/nginx.out httpd results/lighttpd.out httpd results/mongrel2.out httpd results/mysql.out database results/postgresql.out database results/berkeleydb.out database results/monetdb.out database
+```

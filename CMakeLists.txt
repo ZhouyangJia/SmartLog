@@ -6,7 +6,7 @@ set( LLVM_LINK_COMPONENTS
 
 add_clang_executable(clang-smartlog
   src/SmartLog.cpp
-  src/FindLoggingFunction.cpp
+  src/FindLoggingBehavior.cpp
   src/FindLoggedSnippet.cpp
   src/FindOutputSnippet.cpp
   src/FindPatternSnippet.cpp
