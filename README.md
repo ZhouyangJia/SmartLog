@@ -10,11 +10,22 @@ A Semantic-Aware Log Automation Tool for Failure Diagnosis.
 ### Usage
 
 ##### Compile
-- Download the source code.
-- Create new folder *clang-smartlog* in Clang tools directory, e.g., /home/guest/llvm-3.8/tools/clang/tools/clang-smartlog.
-- Extract source code to above new folder.
-- Add *add_clang_subdirectory(clang-smartlog)* in CMakeList.txt in Clang tools directory.
-- Compile Clang, SmartLog is dependent on Python library, maybe you can use -I/usr/include/python2.7 and -lpython2.7.
+- Change directory to Clang tools directory.
+```sh
+cd path/to/llvm-source-tree/tools/clang/tools
+```
+- Download source code.
+```sh
+git clone https://github.com/ZhouyangJia/SmartLog.git
+```
+- Add *add_subdirectory(SmartLog)* to CMakeList.txt.
+```sh
+echo "add_subdirectory(SmartLog)" >> CMakeLists.txt
+```
+- [Recompile Clang](http://llvm.org/docs/CMake.html) and try following command to test.
+```sh
+ls path/to/llvm-build/Release/bin/clang-smartlog
+```
 
 ##### Run
 - Generate *compile_commands.json*. More infomation about [compile_commands.json](http://clang.llvm.org/docs/JSONCompilationDatabase.html).
@@ -48,4 +59,3 @@ cat compiled_files.def | xargs clang-smartlog -find-logging-behavior > logging_r
 ```sh
 python ../../script/patch.py > patch.out
 ```
-
