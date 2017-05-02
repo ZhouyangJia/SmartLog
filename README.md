@@ -41,7 +41,7 @@ bear make
 ```sh
 ../../script/extract_command.pl compile_commands.json
 ```
-- Generate call dependence before running SmartLog (Compiler [CallDependence](https://github.com/ZhouyangJia/CallDependence) tool first).
+- Generate call dependence before running SmartLog (Compile [CallDependence](https://github.com/ZhouyangJia/CallDependence) tool first).
 ```sh
 ../../script/call_dependence.sh
 ```
