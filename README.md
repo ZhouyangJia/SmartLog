@@ -5,6 +5,7 @@ A Semantic-Aware Log Automation Tool for Failure Diagnosis.
 
 ### Introduction
 *SmartLog* is a log automation tool. Through learning logging rules from existing logs, *SmartLog* can decide whether to log a given code snippet or not , and finally inserts logging statement when necessary.
+This tool is built against LLVM-3.8.
 
 
 ### Usage
