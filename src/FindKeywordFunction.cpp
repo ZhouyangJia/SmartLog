@@ -236,8 +236,7 @@ bool FindKeywordVisitor::VisitFunctionDecl(FunctionDecl* Declaration) {
     
 	if(Declaration->getBody()){
         
-        
-
+    
 		travelStmt(Declaration->getBody());	
 	}
 	return true;

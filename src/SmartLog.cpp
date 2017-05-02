@@ -480,7 +480,7 @@ int main(int argc, const char **argv) {
         fLogBehavior = fopen("logging_behavior.out","w");
         fNorBehavior = fopen("normalized_behavior.out","w");
         
-        // Run clang action
+        // Run find logging behaivor action
         FrontendFactory = newFrontendActionFactory<FindLoggingAction>();
         for(unsigned i = 0; i < source.size(); i++){
             vector<string> mysource;
@@ -490,7 +490,18 @@ int main(int argc, const char **argv) {
             if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
                 Tool.setDiagnosticConsumer(idc);}
             Tool.run(FrontendFactory.get());
-            
+        }
+        
+        // Run insert log action
+        FrontendFactory = newFrontendActionFactory<InsertLogAction>();
+        for(unsigned i = 0; i < source.size(); i++){
+            vector<string> mysource;
+            mysource.push_back(source[i]);
+            ClangTool Tool(OptionsParser.getCompilations(), mysource);
+            Tool.clearArgumentsAdjusters();
+            if(diag){IgnoringDiagConsumer* idc = new IgnoringDiagConsumer();
+                Tool.setDiagnosticConsumer(idc);}
+            Tool.run(FrontendFactory.get());
         }
         
         // Frequent item mining
