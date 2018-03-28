@@ -1,5 +1,5 @@
 # SmartLog
-Error-Log Statement Placement by Deep Understanding of Log Intention.
+Place Error Log Statement by Deep Understanding of Log Intention.
 
 ---
 
