@@ -412,7 +412,7 @@ int main(int argc, const char **argv) {
             return 0;
         }
         PyRun_SimpleString("import sys");
-        PyRun_SimpleString("sys.path.append('/Users/zhouyangjia/source/script/segment/')");
+        PyRun_SimpleString("sys.path.append('../../script/')");
         pName = PyString_FromString("segment");
         pModule = PyImport_Import(pName);
         if(!pModule){
