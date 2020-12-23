@@ -1,9 +1,0 @@
-File: log semantics
-Format: project \ function name \ type \ call location 1 \ call location 2
-
-type:
-	different
-	variable
-	expression
-	branch
-	same
